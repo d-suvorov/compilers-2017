@@ -8,32 +8,29 @@ import org.wotopul.AbstractNode.Program.*
 class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitSkip(ctx: LanguageParser.SkipContext?) = Skip
 
-    override fun visitSequence(ctx: LanguageParser.SequenceContext?): AbstractNode {
-        return Sequence(
+    override fun visitSequence(ctx: LanguageParser.SequenceContext?) =
+        Sequence(
             visit(ctx!!.first) as Program,
             visit(ctx.rest) as Program)
-    }
 
-    override fun visitWrite(ctx: LanguageParser.WriteContext?): AbstractNode {
-        return Write(visit(ctx!!.expr()) as ArithExpr)
-    }
+    override fun visitWrite(ctx: LanguageParser.WriteContext?) =
+        Write(visit(ctx!!.expr()) as ArithExpr)
 
-    override fun visitAssignment(ctx: LanguageParser.AssignmentContext?): AbstractNode {
+    override fun visitAssignment(ctx: LanguageParser.AssignmentContext?): Assignment {
         val name = ctx!!.ID().text
         val expr = visit(ctx.expr()) as ArithExpr
         return Assignment(name, expr)
     }
 
-    override fun visitConst(ctx: LanguageParser.ConstContext?): AbstractNode {
+    override fun visitConst(ctx: LanguageParser.ConstContext?): Const {
         val value = ctx!!.NUM().text.toInt()
-        return ArithExpr.Const(value)
+        return Const(value)
     }
 
-    override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode {
-        return visit(ctx!!.getChild(0) /* there must be only one child */)
-    }
+    override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode =
+        visit(ctx!!.getChild(0)) // there must be only one child
 
-    override fun visitInfix(ctx: LanguageParser.InfixContext?): AbstractNode {
+    override fun visitInfix(ctx: LanguageParser.InfixContext?): ArithExpr {
         // TODO can we treat Kotlin constructor as a HOF?
         val lhs = visit(ctx!!.left) as ArithExpr
         val rhs = visit(ctx.right) as ArithExpr
@@ -46,12 +43,12 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         }
     }
 
-    override fun visitVariable(ctx: LanguageParser.VariableContext?): AbstractNode {
+    override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {
         val name = ctx!!.ID().text
         return Variable(name)
     }
 
-    override fun visitRead(ctx: LanguageParser.ReadContext?): AbstractNode {
+    override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
         val name = ctx!!.ID().text
         return Read(name)
     }
