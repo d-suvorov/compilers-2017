@@ -1,6 +1,6 @@
 package org.wotopul
 
-import org.wotopul.LogicalExpr.ArithExpr
+import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
 
 fun eval(expr: ArithExpr, env: Map<String, Int>): Int? = when (expr) {
     is ArithExpr.Const -> expr.value

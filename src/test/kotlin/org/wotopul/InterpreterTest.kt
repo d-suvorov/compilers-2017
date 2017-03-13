@@ -3,13 +3,14 @@ package org.wotopul
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.wotopul.LogicalExpr.ArithExpr.Const
-import org.wotopul.LogicalExpr.ArithExpr.Variable
-import org.wotopul.Program.*
+import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Const
+import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Variable
+import org.wotopul.AbstractNode.Program
+import org.wotopul.AbstractNode.Program.*
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
-class HelloTest(val program : Program, val input: List<Int>, val output: List<Int>) {
+class InterpreterTest(val program : Program, val input: List<Int>, val output: List<Int>) {
     companion object {
         @JvmStatic
         val SEQUENCE_OF_WRITES = sequence(
@@ -42,7 +43,7 @@ class HelloTest(val program : Program, val input: List<Int>, val output: List<In
         @JvmStatic
         @Parameterized.Parameters
         fun data(): Collection<Array<Any>> = listOf(
-            arrayOf(Program.Skip, listOf(1, 2, 3), emptyList<Int>()),
+            arrayOf(Skip, listOf(1, 2, 3), emptyList<Int>()),
             arrayOf(SEQUENCE_OF_WRITES, emptyList<Int>(), listOf(41, 42, 43)),
             arrayOf(SIMPLE_ARITHMETIC, emptyList<Int>(), listOf((5 / 2 + 2) * 42)),
             arrayOf(WRITES_AND_READS, listOf(7, 42, 0), listOf(1, 3, 2, 2, 42, 0))

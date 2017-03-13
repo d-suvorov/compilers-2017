@@ -1,5 +1,7 @@
 package org.wotopul
 
+import org.wotopul.AbstractNode.Program
+
 fun interpret(program: Program, input: List<Int>): List<Int>?
     = eval(program, Configuration(input))?.output
 

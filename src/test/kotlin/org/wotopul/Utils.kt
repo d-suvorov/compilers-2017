@@ -1,6 +1,7 @@
 package org.wotopul
 
-import org.wotopul.LogicalExpr.ArithExpr
+import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
+import org.wotopul.AbstractNode.Program
 
 fun sequence(vararg statements: Program): Program {
     fun sequence(statements: List<Program>): Program =
