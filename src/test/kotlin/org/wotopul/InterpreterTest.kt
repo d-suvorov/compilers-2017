@@ -7,10 +7,13 @@ import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Const
 import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Variable
 import org.wotopul.AbstractNode.Program
 import org.wotopul.AbstractNode.Program.*
+import org.wotopul.Configuration.OutputItem
+import org.wotopul.Configuration.OutputItem.Number
+import org.wotopul.Configuration.OutputItem.Prompt
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
-class InterpreterTest(val program : Program, val input: List<Int>, val output: List<Int>) {
+class InterpreterTest(val program : Program, val input: List<Int>, val output: List<OutputItem>) {
     companion object {
         @JvmStatic
         val SEQUENCE_OF_WRITES = sequence(
@@ -44,9 +47,13 @@ class InterpreterTest(val program : Program, val input: List<Int>, val output: L
         @Parameterized.Parameters
         fun data(): Collection<Array<Any>> = listOf(
             arrayOf(Skip, listOf(1, 2, 3), emptyList<Int>()),
-            arrayOf(SEQUENCE_OF_WRITES, emptyList<Int>(), listOf(41, 42, 43)),
-            arrayOf(SIMPLE_ARITHMETIC, emptyList<Int>(), listOf((5 / 2 + 2) * 42)),
-            arrayOf(WRITES_AND_READS, listOf(7, 42, 0), listOf(1, 3, 2, 2, 42, 0))
+            arrayOf(SEQUENCE_OF_WRITES, emptyList<Int>(), listOf(41, 42, 43).map(::Number)),
+            arrayOf(SIMPLE_ARITHMETIC, emptyList<Int>(), listOf(Number((5 / 2 + 2) * 42))),
+            arrayOf(WRITES_AND_READS, listOf(7, 42, 0), listOf(
+                Number(1), Number(3), Number(2),
+                Prompt, Prompt, Number(2),
+                Number(42), Prompt, Number(0)
+            ))
         )
     }
 

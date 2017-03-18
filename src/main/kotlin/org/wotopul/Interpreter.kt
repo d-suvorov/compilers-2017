@@ -1,14 +1,36 @@
 package org.wotopul
 
 import org.wotopul.AbstractNode.Program
+import org.wotopul.Configuration.OutputItem
 
-fun interpret(program: Program, input: List<Int>): List<Int>? =
+fun interpret(program: Program, input: List<Int>): List<OutputItem>? =
     eval(program, Configuration(input))?.output
 
 class Configuration(
     val input: List<Int>,
-    val output: List<Int> = emptyList(),
+    val output: List<OutputItem> = emptyList(),
     val environment: Map<String, Int> = emptyMap())
+{
+    sealed class OutputItem {
+        object Prompt : OutputItem()
+        class Number(val value: Int) : OutputItem() {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other?.javaClass != javaClass) return false
+                return value == (other as Number).value
+            }
+
+            override fun hashCode(): Int {
+                return value
+            }
+        }
+
+        override fun toString() = when (this) {
+            is Prompt -> "> "
+            is Number -> "$value\n"
+        }
+    }
+}
 
 fun eval(program: Program, start: Configuration): Configuration? = when (program) {
     is Program.Skip -> start
@@ -28,14 +50,14 @@ fun eval(program: Program, start: Configuration): Configuration? = when (program
             val inputTail = start.input.subList(1, start.input.size)
             val name = program.variable
             val updated = start.environment + (name to inputHead)
-            Configuration(inputTail, start.output, updated)
+            Configuration(inputTail, start.output + OutputItem.Prompt, updated)
         } else null
     }
 
     is Program.Write -> {
         val value = eval(program.value, start.environment)
         if (value != null) {
-            Configuration(start.input, start.output + value, start.environment)
+            Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
         } else null
     }
 
