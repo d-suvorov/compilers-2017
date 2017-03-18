@@ -8,7 +8,7 @@ statement
     : ST_SKIP                            # skip
     | first=statement ';' rest=statement # sequence
     | ID ':=' expr                       # assignment
-    | READ '(' ID ')'                    # read
+    | ID ':=' READ '(' ')'               # read
     | WRITE '(' expr ')'                 # write
     ;
 
