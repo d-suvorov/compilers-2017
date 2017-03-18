@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# A dirty hack with relative path is used because
+# the script is called from a test directory.
+java -jar ../../target/rc.jar "$@"
