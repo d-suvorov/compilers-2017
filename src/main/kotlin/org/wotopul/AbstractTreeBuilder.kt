@@ -28,7 +28,9 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     }
 
     override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode =
-        visit(ctx!!.getChild(0)) // there must be only one child
+        // children by their indices must be:
+        // 0 - open parenthesis, 1 - expression, 2 - close parenthesis
+        visit(ctx!!.getChild(1))
 
     override fun visitInfix(ctx: LanguageParser.InfixContext?): ArithExpr {
         val lhs = visit(ctx!!.left) as ArithExpr
