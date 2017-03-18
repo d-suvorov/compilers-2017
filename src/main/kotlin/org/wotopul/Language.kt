@@ -27,6 +27,7 @@ sealed class AbstractNode {
             class Subtraction(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
             class Multiplication(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
             class Division(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
+            class Modulus(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
         }
     }
 }

@@ -1,15 +1,17 @@
 package org.wotopul
 
 import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
+import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.*
 
 fun eval(expr: ArithExpr, env: Map<String, Int>): Int? = when (expr) {
-    is ArithExpr.Const -> expr.value
-    is ArithExpr.Variable -> env[expr.name]
+    is Const -> expr.value
+    is Variable -> env[expr.name]
 
-    is ArithExpr.Addition -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x + y })
-    is ArithExpr.Subtraction -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x - y })
-    is ArithExpr.Multiplication -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x * y })
-    is ArithExpr.Division -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x / y })
+    is Addition -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x + y })
+    is Subtraction -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x - y })
+    is Multiplication -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x * y })
+    is Division -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x / y })
+    is Modulus -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x % y })
 }
 
 fun <Sub, SubVal, Val> evalBinary(lhs: Sub, rhs: Sub, env: Map<String, Int>,

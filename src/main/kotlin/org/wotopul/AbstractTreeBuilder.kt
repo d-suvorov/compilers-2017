@@ -31,12 +31,12 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         visit(ctx!!.getChild(0)) // there must be only one child
 
     override fun visitInfix(ctx: LanguageParser.InfixContext?): ArithExpr {
-        // TODO can we treat Kotlin constructor as a HOF?
         val lhs = visit(ctx!!.left) as ArithExpr
         val rhs = visit(ctx.right) as ArithExpr
         return when (ctx.op.type) {
             LanguageParser.OP_MUL -> Multiplication(lhs, rhs)
             LanguageParser.OP_DIV -> Division(lhs, rhs)
+            LanguageParser.OP_MOD -> Modulus(lhs, rhs)
             LanguageParser.OP_ADD -> Addition(lhs, rhs)
             LanguageParser.OP_SUB -> Subtraction(lhs, rhs)
             else -> throw AssertionError()

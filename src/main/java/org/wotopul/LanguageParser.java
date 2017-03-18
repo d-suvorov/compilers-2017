@@ -18,7 +18,7 @@ public class LanguageParser extends Parser {
 		new PredictionContextCache();
 	public static final int
 		T__0=1, T__1=2, T__2=3, T__3=4, ST_SKIP=5, READ=6, WRITE=7, OP_MUL=8, 
-		OP_DIV=9, OP_ADD=10, OP_SUB=11, NUM=12, ID=13, WS=14;
+		OP_DIV=9, OP_MOD=10, OP_ADD=11, OP_SUB=12, NUM=13, ID=14, WS=15;
 	public static final int
 		RULE_program = 0, RULE_statement = 1, RULE_expr = 2;
 	public static final String[] ruleNames = {
@@ -27,11 +27,11 @@ public class LanguageParser extends Parser {
 
 	private static final String[] _LITERAL_NAMES = {
 		null, "';'", "':='", "'('", "')'", "'skip'", "'read'", "'write'", "'*'", 
-		"'/'", "'+'", "'-'"
+		"'/'", "'%'", "'+'", "'-'"
 	};
 	private static final String[] _SYMBOLIC_NAMES = {
 		null, null, null, null, null, "ST_SKIP", "READ", "WRITE", "OP_MUL", "OP_DIV", 
-		"OP_ADD", "OP_SUB", "NUM", "ID", "WS"
+		"OP_MOD", "OP_ADD", "OP_SUB", "NUM", "ID", "WS"
 	};
 	public static final Vocabulary VOCABULARY = new VocabularyImpl(_LITERAL_NAMES, _SYMBOLIC_NAMES);
 
@@ -345,6 +345,7 @@ public class LanguageParser extends Parser {
 		}
 		public TerminalNode OP_MUL() { return getToken(LanguageParser.OP_MUL, 0); }
 		public TerminalNode OP_DIV() { return getToken(LanguageParser.OP_DIV, 0); }
+		public TerminalNode OP_MOD() { return getToken(LanguageParser.OP_MOD, 0); }
 		public TerminalNode OP_ADD() { return getToken(LanguageParser.OP_ADD, 0); }
 		public TerminalNode OP_SUB() { return getToken(LanguageParser.OP_SUB, 0); }
 		public InfixContext(ExprContext ctx) { copyFrom(ctx); }
@@ -442,7 +443,7 @@ public class LanguageParser extends Parser {
 						setState(43);
 						((InfixContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !(_la==OP_MUL || _la==OP_DIV) ) {
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << OP_MUL) | (1L << OP_DIV) | (1L << OP_MOD))) != 0)) ) {
 							((InfixContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
@@ -523,19 +524,19 @@ public class LanguageParser extends Parser {
 	}
 
 	public static final String _serializedATN =
-		"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3\208\4\2\t\2\4\3\t"+
+		"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3\218\4\2\t\2\4\3\t"+
 		"\3\4\4\t\4\3\2\3\2\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3"+
 		"\3\3\3\3\5\3\32\n\3\3\3\3\3\3\3\7\3\37\n\3\f\3\16\3\"\13\3\3\4\3\4\3\4"+
 		"\3\4\3\4\3\4\3\4\5\4+\n\4\3\4\3\4\3\4\3\4\3\4\3\4\7\4\63\n\4\f\4\16\4"+
-		"\66\13\4\3\4\2\4\4\6\5\2\4\6\2\4\3\2\n\13\3\2\f\r<\2\b\3\2\2\2\4\31\3"+
+		"\66\13\4\3\4\2\4\4\6\5\2\4\6\2\4\3\2\n\f\3\2\r\16<\2\b\3\2\2\2\4\31\3"+
 		"\2\2\2\6*\3\2\2\2\b\t\5\4\3\2\t\3\3\2\2\2\n\13\b\3\1\2\13\32\7\7\2\2\f"+
-		"\r\7\17\2\2\r\16\7\4\2\2\16\32\5\6\4\2\17\20\7\17\2\2\20\21\7\4\2\2\21"+
+		"\r\7\20\2\2\r\16\7\4\2\2\16\32\5\6\4\2\17\20\7\20\2\2\20\21\7\4\2\2\21"+
 		"\22\7\b\2\2\22\23\7\5\2\2\23\32\7\6\2\2\24\25\7\t\2\2\25\26\7\5\2\2\26"+
 		"\27\5\6\4\2\27\30\7\6\2\2\30\32\3\2\2\2\31\n\3\2\2\2\31\f\3\2\2\2\31\17"+
 		"\3\2\2\2\31\24\3\2\2\2\32 \3\2\2\2\33\34\f\6\2\2\34\35\7\3\2\2\35\37\5"+
 		"\4\3\7\36\33\3\2\2\2\37\"\3\2\2\2 \36\3\2\2\2 !\3\2\2\2!\5\3\2\2\2\" "+
-		"\3\2\2\2#$\b\4\1\2$%\7\5\2\2%&\5\6\4\2&\'\7\6\2\2\'+\3\2\2\2(+\7\17\2"+
-		"\2)+\7\16\2\2*#\3\2\2\2*(\3\2\2\2*)\3\2\2\2+\64\3\2\2\2,-\f\6\2\2-.\t"+
+		"\3\2\2\2#$\b\4\1\2$%\7\5\2\2%&\5\6\4\2&\'\7\6\2\2\'+\3\2\2\2(+\7\20\2"+
+		"\2)+\7\17\2\2*#\3\2\2\2*(\3\2\2\2*)\3\2\2\2+\64\3\2\2\2,-\f\6\2\2-.\t"+
 		"\2\2\2.\63\5\6\4\7/\60\f\5\2\2\60\61\t\3\2\2\61\63\5\6\4\6\62,\3\2\2\2"+
 		"\62/\3\2\2\2\63\66\3\2\2\2\64\62\3\2\2\2\64\65\3\2\2\2\65\7\3\2\2\2\66"+
 		"\64\3\2\2\2\7\31 *\62\64";
