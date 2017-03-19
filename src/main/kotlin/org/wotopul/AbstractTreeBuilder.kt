@@ -33,16 +33,10 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         visit(ctx!!.getChild(1))
 
     override fun visitInfix(ctx: LanguageParser.InfixContext?): Expr {
-        val lhs = visit(ctx!!.left) as Expr
+        val op = ctx!!.op.text
+        val lhs = visit(ctx.left) as Expr
         val rhs = visit(ctx.right) as Expr
-        return when (ctx.op.type) {
-            LanguageParser.OP_MUL -> Multiplication(lhs, rhs)
-            LanguageParser.OP_DIV -> Division(lhs, rhs)
-            LanguageParser.OP_MOD -> Modulus(lhs, rhs)
-            LanguageParser.OP_ADD -> Addition(lhs, rhs)
-            LanguageParser.OP_SUB -> Subtraction(lhs, rhs)
-            else -> throw AssertionError()
-        }
+        return Binop(op, lhs, rhs)
     }
 
     override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {

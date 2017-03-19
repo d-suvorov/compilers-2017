@@ -7,11 +7,14 @@ fun eval(expr: Expr, env: Map<String, Int>): Int? = when (expr) {
     is Const -> expr.value
     is Variable -> env[expr.name]
 
-    is Addition -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x + y })
-    is Subtraction -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x - y })
-    is Multiplication -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x * y })
-    is Division -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x / y })
-    is Modulus -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x % y })
+    is Binop -> when (expr.op) {
+        "+" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x + y })
+        "-" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x - y })
+        "*" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x * y })
+        "/" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x / y })
+        "%" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x % y })
+        else -> throw AssertionError("unknown binary operation")
+    }
 }
 
 fun <Sub, SubVal, Val> evalBinary(lhs: Sub, rhs: Sub, env: Map<String, Int>,

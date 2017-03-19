@@ -16,7 +16,7 @@ fun sequence(vararg statements: Program): Program {
     return sequence(statements.toList())
 }
 
-operator fun Expr.plus(rhs: Expr) = Expr.Addition(this, rhs)
-operator fun Expr.minus(rhs: Expr) = Expr.Subtraction(this, rhs)
-operator fun Expr.times(rhs: Expr) = Expr.Multiplication(this, rhs)
-operator fun Expr.div(rhs: Expr) = Expr.Division(this, rhs)
+operator fun Expr.plus(rhs: Expr) = Expr.Binop("+", this, rhs)
+operator fun Expr.minus(rhs: Expr) = Expr.Binop("-", this, rhs)
+operator fun Expr.times(rhs: Expr) = Expr.Binop("*", this, rhs)
+operator fun Expr.div(rhs: Expr) = Expr.Binop("/", this, rhs)

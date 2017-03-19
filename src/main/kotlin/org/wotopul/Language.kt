@@ -12,11 +12,6 @@ sealed class AbstractNode {
     sealed class Expr : AbstractNode() {
         class Const(val value: Int) : Expr()
         class Variable(val name: String) : Expr()
-
-        class Addition(val lhs: Expr, val rhs: Expr) : Expr()
-        class Subtraction(val lhs: Expr, val rhs: Expr) : Expr()
-        class Multiplication(val lhs: Expr, val rhs: Expr) : Expr()
-        class Division(val lhs: Expr, val rhs: Expr) : Expr()
-        class Modulus(val lhs: Expr, val rhs: Expr) : Expr()
+        class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
     }
 }

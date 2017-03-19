@@ -13,7 +13,7 @@ import org.wotopul.Configuration.OutputItem.Prompt
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
-class InterpreterTest(val program : Program, val input: List<Int>, val output: List<OutputItem>) {
+class InterpreterTest(val program: Program, val input: List<Int>, val output: List<OutputItem>) {
     companion object {
         @JvmStatic
         val SEQUENCE_OF_WRITES = sequence(
