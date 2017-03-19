@@ -1,5 +1,8 @@
 package org.wotopul
 
+import org.wotopul.AbstractNode.Expr
+import org.wotopul.AbstractNode.Program
+import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
 import org.wotopul.StackOp.*
@@ -14,6 +17,20 @@ sealed class StackOp {
     class Binop(val op: String) : StackOp()
 }
 
+fun compile(expr: Expr): List<StackOp> = when (expr) {
+    is Expr.Const -> listOf(Push(expr.value))
+    is Expr.Variable -> listOf(Load(expr.name))
+    is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
+}
+
+fun compile(program: Program): List<StackOp> = when (program) {
+    is Program.Skip -> listOf(Nop)
+    is Program.Sequence -> compile(program.first) + compile(program.rest)
+    is Program.Assignment -> compile(program.value) + Store(program.variable)
+    is Program.Read -> listOf(Read, Store(program.variable))
+    is Program.Write -> compile(program.value) + Write
+}
+
 class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
@@ -21,17 +38,18 @@ class StackConf(
     var stack: List<Int> = emptyList()
 ) : Configuration(input, output, environment)
 
+fun interpret(program: List<StackOp>, input: List<Int>): List<OutputItem>? =
+    interpret(program, StackConf(input)).output
+
 fun interpret(program: List<StackOp>, start: StackConf): StackConf {
     val curr: StackConf = start
 
-    fun topOrThrow(): Int {
+    fun popOrThrow(): Int {
         if (curr.stack.isEmpty())
             throw ExecutionException("empty stack")
-        return curr.stack.last()
-    }
-
-    fun pop() {
-        curr.stack = curr.stack.subList(1, curr.stack.size)
+        val top = curr.stack.last()
+        curr.stack = curr.stack.subList(0, curr.stack.size - 1)
+        return top
     }
 
     fun step(op: StackOp) {
@@ -49,8 +67,7 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             }
 
             is Write -> {
-                curr.output += Number(topOrThrow())
-                pop()
+                curr.output += Number(popOrThrow())
             }
 
             is Push -> curr.stack += op.value
@@ -62,13 +79,12 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             }
 
             is Store -> {
-                curr.environment += (op.name to topOrThrow())
-                pop()
+                curr.environment += (op.name to popOrThrow())
             }
 
             is Binop -> {
-                val lhs = topOrThrow()
-                val rhs = topOrThrow()
+                val rhs = popOrThrow()
+                val lhs = popOrThrow()
                 curr.stack += functionByOperation(op.op) (lhs, rhs)
             }
         }

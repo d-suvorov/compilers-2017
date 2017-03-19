@@ -25,7 +25,13 @@ fun main(args: Array<String>) {
             else output.forEach(::print)
         }
         "-s" -> {
-            println("Compilation to stack machine is not supported yet")
+            val source = readProgram(args[1])
+            val program = parseProgram(source)
+            val stackProgram = compile(program)
+            val input = readInput()
+            val output = interpret(stackProgram, input)
+            if (output == null) println("Program crashed")
+            else output.forEach(::print)
         }
         "-o" -> {
             println("Compilation is not supported yet")
