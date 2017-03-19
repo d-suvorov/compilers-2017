@@ -13,11 +13,15 @@ statement
     ;
 
 expr
-    : '(' expr ')'                              # parenthesis
-    | left=expr op=('*' | '/' | '%') right=expr # infix
-    | left=expr op=('+' | '-') right=expr       # infix
-    | name=ID                                   # variable
-    | value=NUM                                 # const
+    : '(' expr ')'                                      # parenthesis
+    | left=expr op=('*' | '/' | '%')         right=expr # infix
+    | left=expr op=('+' | '-')               right=expr # infix
+    | left=expr op=('<' | '<=' | '>' | '>=') right=expr # infix
+    | left=expr op=('==' | '!=')             right=expr # infix
+    | left=expr op='&&'                      right=expr # infix
+    | left=expr op='||'                      right=expr # infix
+    | name=ID                                           # variable
+    | value=NUM                                         # const
     ;
 
 ST_SKIP : 'skip';

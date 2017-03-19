@@ -7,22 +7,38 @@ fun eval(expr: Expr, env: Map<String, Int>): Int? = when (expr) {
     is Const -> expr.value
     is Variable -> env[expr.name]
 
-    is Binop -> when (expr.op) {
-        "+" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x + y })
-        "-" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x - y })
-        "*" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x * y })
-        "/" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x / y })
-        "%" -> evalBinary(expr.lhs, expr.rhs, env, ::eval, { x, y -> x % y })
-        else -> throw AssertionError("unknown binary operation")
+    is Binop -> {
+        val f: (Int, Int) -> Int = when (expr.op) {
+            "*" -> { x, y -> x * y }
+            "/" -> { x, y -> x / y }
+
+            "%" -> { x, y -> x % y }
+            "+" -> { x, y -> x + y }
+            "-" -> { x, y -> x - y }
+
+            "<" -> { x, y -> (x < y).toInt() }
+            "<=" -> { x, y -> (x <= y).toInt() }
+            ">" -> { x, y -> (x > y).toInt() }
+            ">=" -> { x, y -> (x >= y).toInt() }
+
+            "==" -> { x, y -> (x == y).toInt() }
+            "!=" -> { x, y -> (x != y).toInt() }
+
+            "&&" -> { x, y -> (x.toBoolean() && y.toBoolean()).toInt() }
+            "||" -> { x, y -> (x.toBoolean() || y.toBoolean()).toInt() }
+
+            else -> throw AssertionError("unknown binary operation")
+        }
+        evalBinary(expr, env, f)
     }
 }
 
-fun <Sub, SubVal, Val> evalBinary(lhs: Sub, rhs: Sub, env: Map<String, Int>,
-                                  evalSub: (Sub, Map<String, Int>) -> SubVal?,
-                                  binOp: (SubVal, SubVal) -> Val): Val?
-{
-    val left = evalSub(lhs, env)
-    val right = evalSub(rhs, env)
+fun Boolean.toInt(): Int = if (this) 1 else 0
+fun Int.toBoolean(): Boolean = this != 0
+
+fun evalBinary(binop: Binop, env: Map<String, Int>, binOp: (Int, Int) -> Int): Int? {
+    val left = eval(binop.lhs, env)
+    val right = eval(binop.rhs, env)
     if (left == null || right == null)
         return null
     return binOp(left, right)
