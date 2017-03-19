@@ -3,8 +3,8 @@ package org.wotopul
 import org.antlr.v4.runtime.ANTLRInputStream
 import org.antlr.v4.runtime.CommonTokenStream
 import org.junit.Test
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Const
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Variable
+import org.wotopul.AbstractNode.Expr.Const
+import org.wotopul.AbstractNode.Expr.Variable
 import org.wotopul.AbstractNode.Program.*
 
 class ParserTest {

@@ -1,6 +1,6 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
+import org.wotopul.AbstractNode.Expr
 import org.wotopul.AbstractNode.Program
 
 fun sequence(vararg statements: Program): Program {
@@ -16,7 +16,7 @@ fun sequence(vararg statements: Program): Program {
     return sequence(statements.toList())
 }
 
-operator fun ArithExpr.plus(rhs: ArithExpr) = ArithExpr.Addition(this, rhs)
-operator fun ArithExpr.minus(rhs: ArithExpr) = ArithExpr.Subtraction(this, rhs)
-operator fun ArithExpr.times(rhs: ArithExpr) = ArithExpr.Multiplication(this, rhs)
-operator fun ArithExpr.div(rhs: ArithExpr) = ArithExpr.Division(this, rhs)
+operator fun Expr.plus(rhs: Expr) = Expr.Addition(this, rhs)
+operator fun Expr.minus(rhs: Expr) = Expr.Subtraction(this, rhs)
+operator fun Expr.times(rhs: Expr) = Expr.Multiplication(this, rhs)
+operator fun Expr.div(rhs: Expr) = Expr.Division(this, rhs)

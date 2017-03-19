@@ -1,7 +1,7 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.*
+import org.wotopul.AbstractNode.Expr
+import org.wotopul.AbstractNode.Expr.*
 import org.wotopul.AbstractNode.Program
 import org.wotopul.AbstractNode.Program.*
 
@@ -14,11 +14,11 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
             visit(ctx.rest) as Program)
 
     override fun visitWrite(ctx: LanguageParser.WriteContext?) =
-        Write(visit(ctx!!.expr()) as ArithExpr)
+        Write(visit(ctx!!.expr()) as Expr)
 
     override fun visitAssignment(ctx: LanguageParser.AssignmentContext?): Assignment {
         val name = ctx!!.ID().text
-        val expr = visit(ctx.expr()) as ArithExpr
+        val expr = visit(ctx.expr()) as Expr
         return Assignment(name, expr)
     }
 
@@ -32,9 +32,9 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         // 0 - open parenthesis, 1 - expression, 2 - close parenthesis
         visit(ctx!!.getChild(1))
 
-    override fun visitInfix(ctx: LanguageParser.InfixContext?): ArithExpr {
-        val lhs = visit(ctx!!.left) as ArithExpr
-        val rhs = visit(ctx.right) as ArithExpr
+    override fun visitInfix(ctx: LanguageParser.InfixContext?): Expr {
+        val lhs = visit(ctx!!.left) as Expr
+        val rhs = visit(ctx.right) as Expr
         return when (ctx.op.type) {
             LanguageParser.OP_MUL -> Multiplication(lhs, rhs)
             LanguageParser.OP_DIV -> Division(lhs, rhs)

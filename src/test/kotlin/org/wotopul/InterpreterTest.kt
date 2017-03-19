@@ -3,8 +3,8 @@ package org.wotopul
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Const
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.Variable
+import org.wotopul.AbstractNode.Expr.Const
+import org.wotopul.AbstractNode.Expr.Variable
 import org.wotopul.AbstractNode.Program
 import org.wotopul.AbstractNode.Program.*
 import org.wotopul.Configuration.OutputItem

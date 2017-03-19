@@ -1,9 +1,9 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr.*
+import org.wotopul.AbstractNode.Expr
+import org.wotopul.AbstractNode.Expr.*
 
-fun eval(expr: ArithExpr, env: Map<String, Int>): Int? = when (expr) {
+fun eval(expr: Expr, env: Map<String, Int>): Int? = when (expr) {
     is Const -> expr.value
     is Variable -> env[expr.name]
 

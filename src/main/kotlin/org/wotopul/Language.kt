@@ -1,33 +1,22 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.LogicalExpr.ArithExpr
-
 sealed class AbstractNode {
     sealed class Program : AbstractNode() {
         object Skip : Program()
         class Sequence(val first: Program, val rest: Program) : Program()
-        class Assignment(val variable: String, val value: ArithExpr) : Program()
+        class Assignment(val variable: String, val value: Expr) : Program()
         class Read(val variable: String) : Program()
-        class Write(val value: ArithExpr) : Program()
+        class Write(val value: Expr) : Program()
     }
 
-    sealed class LogicalExpr : AbstractNode() {
-        class And(val lhs: LogicalExpr, val rhs: LogicalExpr) : LogicalExpr()
-        class Or(val lhs: LogicalExpr, val rhs: LogicalExpr) : LogicalExpr()
+    sealed class Expr : AbstractNode() {
+        class Const(val value: Int) : Expr()
+        class Variable(val name: String) : Expr()
 
-        class Less(val lhs: ArithExpr, val rhs: ArithExpr) : LogicalExpr()
-        class Greater(val lhs: ArithExpr, val rhs: ArithExpr) : LogicalExpr()
-        class Equal(val lhs: ArithExpr, val rhs: ArithExpr) : LogicalExpr()
-
-        sealed class ArithExpr : LogicalExpr() {
-            class Const(val value: Int) : ArithExpr()
-            class Variable(val name: String) : ArithExpr()
-
-            class Addition(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
-            class Subtraction(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
-            class Multiplication(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
-            class Division(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
-            class Modulus(val lhs: ArithExpr, val rhs: ArithExpr) : ArithExpr()
-        }
+        class Addition(val lhs: Expr, val rhs: Expr) : Expr()
+        class Subtraction(val lhs: Expr, val rhs: Expr) : Expr()
+        class Multiplication(val lhs: Expr, val rhs: Expr) : Expr()
+        class Division(val lhs: Expr, val rhs: Expr) : Expr()
+        class Modulus(val lhs: Expr, val rhs: Expr) : Expr()
     }
 }
