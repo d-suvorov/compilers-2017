@@ -6,10 +6,10 @@ import org.wotopul.Configuration.OutputItem
 fun interpret(program: Program, input: List<Int>): List<OutputItem>? =
     eval(program, Configuration(input))?.output
 
-class Configuration(
-    val input: List<Int>,
-    val output: List<OutputItem> = emptyList(),
-    val environment: Map<String, Int> = emptyMap())
+open class Configuration(
+    open val input: List<Int>,
+    open val output: List<OutputItem> = emptyList(),
+    open val environment: Map<String, Int> = emptyMap())
 {
     sealed class OutputItem {
         object Prompt : OutputItem()
