@@ -17,21 +17,27 @@ fun main(args: Array<String>) {
     }
     when (args[0]) {
         "-i" -> {
-            val source = readProgram(args[1])
-            val program = parseProgram(source)
-            val input = readInput()
-            val output = interpret(program, input)
-            if (output == null) println("Program crashed")
-            else output.forEach(::print)
+            try {
+                val source = readProgram(args[1])
+                val program = parseProgram(source)
+                val input = readInput()
+                val output = interpret(program, input)
+                output.forEach(::print)
+            } catch (e: ExecutionException) {
+                println("Program crashed: ${e.message}")
+            }
         }
         "-s" -> {
-            val source = readProgram(args[1])
-            val program = parseProgram(source)
-            val stackProgram = compile(program)
-            val input = readInput()
-            val output = interpret(stackProgram, input)
-            if (output == null) println("Program crashed")
-            else output.forEach(::print)
+            try {
+                val source = readProgram(args[1])
+                val program = parseProgram(source)
+                val stackProgram = compile(program)
+                val input = readInput()
+                val output = interpret(stackProgram, input)
+                output.forEach(::print)
+            } catch (e: ExecutionException) {
+                println("Program crashed: ${e.message}")
+            }
         }
         "-o" -> {
             println("Compilation is not supported yet")

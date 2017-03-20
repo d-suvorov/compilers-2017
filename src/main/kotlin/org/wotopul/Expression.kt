@@ -25,19 +25,18 @@ fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
     else -> throw AssertionError("unknown binary operation")
 }
 
-fun eval(expr: Expr, env: Map<String, Int>): Int? = when (expr) {
-    is Const -> expr.value
-    is Variable -> env[expr.name]
-    is Binop -> evalBinary(expr, env, functionByOperation(expr.op))
-}
-
 fun Boolean.toInt(): Int = if (this) 1 else 0
 fun Int.toBoolean(): Boolean = this != 0
 
-fun evalBinary(binop: Binop, env: Map<String, Int>, binOp: (Int, Int) -> Int): Int? {
-    val left = eval(binop.lhs, env)
-    val right = eval(binop.rhs, env)
-    if (left == null || right == null)
-        return null
-    return binOp(left, right)
+fun eval(expr: Expr, env: Map<String, Int>): Int = when (expr) {
+    is Const -> expr.value
+
+    is Variable -> env[expr.name]
+        ?: throw ExecutionException("undefined variable: ${expr.name}")
+
+    is Binop -> {
+        val left = eval(expr.lhs, env)
+        val right = eval(expr.rhs, env)
+        functionByOperation(expr.op) (left, right)
+    }
 }

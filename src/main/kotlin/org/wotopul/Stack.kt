@@ -38,7 +38,7 @@ class StackConf(
     var stack: List<Int> = emptyList()
 ) : Configuration(input, output, environment)
 
-fun interpret(program: List<StackOp>, input: List<Int>): List<OutputItem>? =
+fun interpret(program: List<StackOp>, input: List<Int>): List<OutputItem> =
     interpret(program, StackConf(input)).output
 
 fun interpret(program: List<StackOp>, start: StackConf): StackConf {
@@ -66,21 +66,17 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                 curr.stack += inputHead
             }
 
-            is Write -> {
-                curr.output += Number(popOrThrow())
-            }
+            is Write -> curr.output += Number(popOrThrow())
 
             is Push -> curr.stack += op.value
 
             is Load -> {
                 val value = curr.environment[op.name]
-                    ?: throw ExecutionException("unassigned variable: ${op.name}")
+                    ?: throw ExecutionException("undefined variable: ${op.name}")
                 curr.stack += value
             }
 
-            is Store -> {
-                curr.environment += (op.name to popOrThrow())
-            }
+            is Store -> curr.environment += (op.name to popOrThrow())
 
             is Binop -> {
                 val rhs = popOrThrow()

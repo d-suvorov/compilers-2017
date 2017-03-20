@@ -3,8 +3,8 @@ package org.wotopul
 import org.wotopul.AbstractNode.Program
 import org.wotopul.Configuration.OutputItem
 
-fun interpret(program: Program, input: List<Int>): List<OutputItem>? =
-    eval(program, Configuration(input))?.output
+fun interpret(program: Program, input: List<Int>): List<OutputItem> =
+    eval(program, Configuration(input)).output
 
 open class Configuration(
     open val input: List<Int>,
@@ -32,39 +32,33 @@ open class Configuration(
     }
 }
 
-fun eval(program: Program, start: Configuration): Configuration? = when (program) {
+fun eval(program: Program, start: Configuration): Configuration = when (program) {
     is Program.Skip -> start
 
     is Program.Assignment -> {
         val value = eval(program.value, start.environment)
-        if (value != null) {
-            val name = program.variable
-            val updated = start.environment + (name to value)
-            Configuration(start.input, start.output, updated)
-        } else null
+        val name = program.variable
+        val updated = start.environment + (name to value)
+        Configuration(start.input, start.output, updated)
     }
 
     is Program.Read -> {
-        if (!start.input.isEmpty()) {
-            val inputHead = start.input.first()
-            val inputTail = start.input.subList(1, start.input.size)
-            val name = program.variable
-            val updated = start.environment + (name to inputHead)
-            Configuration(inputTail, start.output + OutputItem.Prompt, updated)
-        } else null
+        if (start.input.isEmpty())
+            throw ExecutionException("input is empty")
+        val inputHead = start.input.first()
+        val inputTail = start.input.subList(1, start.input.size)
+        val name = program.variable
+        val updated = start.environment + (name to inputHead)
+        Configuration(inputTail, start.output + OutputItem.Prompt, updated)
     }
 
     is Program.Write -> {
         val value = eval(program.value, start.environment)
-        if (value != null) {
-            Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
-        } else null
+        Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
     }
 
     is Program.Sequence -> evalSequentially(program.first, program.rest, start)
 }
 
-fun evalSequentially(first: Program, second: Program, start: Configuration): Configuration? {
-    val afterFirst = eval(first, start) ?: return null
-    return eval(second, afterFirst)
-}
+fun evalSequentially(first: Program, second: Program, start: Configuration) =
+    eval(second, eval(first, start))
