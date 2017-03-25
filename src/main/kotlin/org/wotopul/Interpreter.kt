@@ -1,6 +1,7 @@
 package org.wotopul
 
 import org.wotopul.AbstractNode.Program
+import org.wotopul.AbstractNode.Program.*
 import org.wotopul.Configuration.OutputItem
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
@@ -33,16 +34,16 @@ open class Configuration(
 }
 
 fun eval(program: Program, start: Configuration): Configuration = when (program) {
-    is Program.Skip -> start
+    is Skip -> start
 
-    is Program.Assignment -> {
+    is Assignment -> {
         val value = eval(program.value, start.environment)
         val name = program.variable
         val updated = start.environment + (name to value)
         Configuration(start.input, start.output, updated)
     }
 
-    is Program.Read -> {
+    is Read -> {
         if (start.input.isEmpty())
             throw ExecutionException("input is empty")
         val inputHead = start.input.first()
@@ -52,12 +53,18 @@ fun eval(program: Program, start: Configuration): Configuration = when (program)
         Configuration(inputTail, start.output + OutputItem.Prompt, updated)
     }
 
-    is Program.Write -> {
+    is Write -> {
         val value = eval(program.value, start.environment)
         Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
     }
 
-    is Program.Sequence -> evalSequentially(program.first, program.rest, start)
+    is Sequence -> evalSequentially(program.first, program.rest, start)
+
+    is If -> {
+        val condValue = eval(program.condition, start.environment).toBoolean()
+        val clause = if (condValue) program.thenClause else program.elseClause
+        eval(clause, start)
+    }
 }
 
 fun evalSequentially(first: Program, second: Program, start: Configuration) =

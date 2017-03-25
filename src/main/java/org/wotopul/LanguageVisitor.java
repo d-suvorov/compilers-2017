@@ -18,39 +18,52 @@ public interface LanguageVisitor<T> extends ParseTreeVisitor<T> {
 	T visitProgram(LanguageParser.ProgramContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code sequence}
-	 * labeled alternative in {@link LanguageParser#statement}.
+	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitSequence(LanguageParser.SequenceContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code read}
-	 * labeled alternative in {@link LanguageParser#statement}.
+	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitRead(LanguageParser.ReadContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code assignment}
-	 * labeled alternative in {@link LanguageParser#statement}.
+	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitAssignment(LanguageParser.AssignmentContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code skip}
-	 * labeled alternative in {@link LanguageParser#statement}.
+	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitSkip(LanguageParser.SkipContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code write}
-	 * labeled alternative in {@link LanguageParser#statement}.
+	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitWrite(LanguageParser.WriteContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code if}
+	 * labeled alternative in {@link LanguageParser#stmt}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitIf(LanguageParser.IfContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link LanguageParser#elif}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitElif(LanguageParser.ElifContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code const}
 	 * labeled alternative in {@link LanguageParser#expr}.

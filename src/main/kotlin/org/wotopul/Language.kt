@@ -7,6 +7,7 @@ sealed class AbstractNode {
         class Assignment(val variable: String, val value: Expr) : Program()
         class Read(val variable: String) : Program()
         class Write(val value: Expr) : Program()
+        class If(val condition: Expr, val thenClause: Program, val elseClause: Program): Program()
     }
 
     sealed class Expr : AbstractNode() {

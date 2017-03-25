@@ -6,8 +6,8 @@ import org.wotopul.AbstractNode.Expr.*
 fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
     "*" -> { x, y -> x * y }
     "/" -> { x, y -> x / y }
-
     "%" -> { x, y -> x % y }
+
     "+" -> { x, y -> x + y }
     "-" -> { x, y -> x - y }
 

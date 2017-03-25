@@ -1,15 +1,21 @@
 grammar Language;
 
 program
-    : statement
+    : stmt
     ;
 
-statement
-    : ST_SKIP                            # skip
-    | first=statement ';' rest=statement # sequence
-    | ID ':=' expr                       # assignment
-    | ID ':=' READ '(' ')'               # read
-    | WRITE '(' expr ')'                 # write
+stmt
+    : ST_SKIP                              # skip
+    | first=stmt ';' rest=stmt             # sequence
+    | ID ':=' expr                         # assignment
+    | ID ':=' READ '(' ')'                 # read
+    | WRITE '(' expr ')'                   # write
+    | IF expr THEN thenClause=stmt elif*
+      (ELSE elseClause=stmt)? FI           # if
+    ;
+
+elif
+    : ELIF expr THEN stmt
     ;
 
 expr
@@ -27,6 +33,11 @@ expr
 ST_SKIP : 'skip';
 READ    : 'read';
 WRITE   : 'write';
+IF      : 'if';
+THEN    : 'then';
+ELIF    : 'elif';
+ELSE    : 'else';
+FI      : 'fi';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][a-zA-Z0-9]*;

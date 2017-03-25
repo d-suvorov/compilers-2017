@@ -29,6 +29,7 @@ fun compile(program: Program): List<StackOp> = when (program) {
     is Program.Assignment -> compile(program.value) + Store(program.variable)
     is Program.Read -> listOf(Read, Store(program.variable))
     is Program.Write -> compile(program.value) + Write
+    is Program.If -> TODO("not implemented yet")
 }
 
 class StackConf(
