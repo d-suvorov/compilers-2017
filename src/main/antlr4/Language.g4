@@ -13,6 +13,7 @@ stmt
     | IF cond=expr THEN thenClause=stmt elif*
       (ELSE elseClause=stmt)? FI              # if
     | WHILE cond=expr DO body=stmt OD         # while
+    | REPEAT body=stmt UNTIL cond=expr        # repeat
     ;
 
 elif
@@ -42,6 +43,8 @@ FI      : 'fi';
 WHILE   : 'while';
 DO      : 'do';
 OD      : 'od';
+REPEAT  : 'repeat';
+UNTIL   : 'until';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;

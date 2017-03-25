@@ -11,6 +11,7 @@ sealed class AbstractNode {
 
         class If(val condition: Expr, val thenClause: Program, val elseClause: Program): Program()
         class While(val condition: Expr, val body: Program): Program()
+        class Repeat(val body: Program, val condition: Expr): Program()
     }
 
     sealed class Expr : AbstractNode() {

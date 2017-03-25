@@ -71,6 +71,12 @@ fun eval(program: Program, start: Configuration): Configuration = when (program)
         if (condValue) evalSequentially(program.body, program, start)
         else start
     }
+
+    is Repeat -> {
+        val afterFirst = eval(program.body, start)
+        val condValue = eval(program.condition, afterFirst.environment).toBoolean()
+        if (!condValue) eval(program, afterFirst) else afterFirst
+    }
 }
 
 fun evalSequentially(first: Program, second: Program, start: Configuration) =

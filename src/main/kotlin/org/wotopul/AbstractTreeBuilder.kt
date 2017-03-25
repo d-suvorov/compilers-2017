@@ -63,4 +63,10 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         val body = visit(ctx.body) as Program
         return While(cond, body)
     }
+
+    override fun visitRepeat(ctx: LanguageParser.RepeatContext?): Repeat {
+        val body = visit(ctx!!.body) as Program
+        val cond = visit(ctx.cond) as Expr
+        return Repeat(body, cond)
+    }
 }

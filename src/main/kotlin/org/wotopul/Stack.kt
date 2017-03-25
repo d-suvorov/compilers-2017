@@ -61,6 +61,13 @@ fun compile(program: Program): List<StackOp> {
                 bodyLabel + compileImpl(program.body) +
                 Jump(condLabel.name) + odLabel
         }
+
+        is Program.Repeat -> {
+            val beginLabel = Label(nextLabel())
+            val endLabel = Label(nextLabel())
+            listOf(beginLabel) + compileImpl(program.body) + compile(program.condition) +
+                Jnz(endLabel.name) + Jump(beginLabel.name) + endLabel
+        }
     }
 
     return compileImpl(program)
