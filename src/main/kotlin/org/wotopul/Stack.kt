@@ -6,6 +6,7 @@ import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
 import org.wotopul.StackOp.*
+import java.util.*
 
 sealed class StackOp {
     object Nop : StackOp()
@@ -15,6 +16,9 @@ sealed class StackOp {
     class Load(val name: String) : StackOp()
     class Store(val name: String) : StackOp()
     class Binop(val op: String) : StackOp()
+    class Label(val name: String) : StackOp()
+    class Jump(val label: String) : StackOp()
+    class Jnz(val label: String) : StackOp()
 }
 
 fun compile(expr: Expr): List<StackOp> = when (expr) {
@@ -23,13 +27,31 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
 }
 
-fun compile(program: Program): List<StackOp> = when (program) {
-    is Program.Skip -> listOf(Nop)
-    is Program.Sequence -> compile(program.first) + compile(program.rest)
-    is Program.Assignment -> compile(program.value) + Store(program.variable)
-    is Program.Read -> listOf(Read, Store(program.variable))
-    is Program.Write -> compile(program.value) + Write
-    is Program.If -> TODO("not implemented yet")
+fun compile(program: Program): List<StackOp> {
+    var labelCounter = 0
+
+    fun nextLabel(): String {
+        val res = "label$labelCounter"
+        labelCounter++
+        return res
+    }
+
+    fun compileImpl(program: Program): List<StackOp> = when (program) {
+        is Program.Skip -> listOf(Nop)
+        is Program.Sequence -> compileImpl(program.first) + compileImpl(program.rest)
+        is Program.Assignment -> compile(program.value) + Store(program.variable)
+        is Program.Read -> listOf(Read, Store(program.variable))
+        is Program.Write -> compile(program.value) + Write
+        is Program.If -> {
+            val thenLabel = Label(nextLabel())
+            val fiLabel = Label(nextLabel())
+            compile(program.condition) + Jnz(thenLabel.name) +
+                compileImpl(program.elseClause) + Jump(fiLabel.name) +
+                thenLabel + compileImpl(program.thenClause) + fiLabel
+        }
+    }
+
+    return compileImpl(program)
 }
 
 class StackConf(
@@ -45,6 +67,19 @@ fun interpret(program: List<StackOp>, input: List<Int>): List<OutputItem> =
 fun interpret(program: List<StackOp>, start: StackConf): StackConf {
     val curr: StackConf = start
 
+    val labelTable = HashMap<String, Int>()
+    for (i in program.indices) {
+        val op = program[i]
+        if (op is Label) {
+            if (labelTable.containsKey(op.name))
+                throw ExecutionException("duplicate label: ${op.name}")
+            labelTable[op.name] = i
+        }
+    }
+
+    fun labelIndex(label: String) = labelTable[label]
+        ?: throw ExecutionException("undefined label: $label")
+
     fun popOrThrow(): Int {
         if (curr.stack.isEmpty())
             throw ExecutionException("empty stack")
@@ -53,7 +88,11 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
         return top
     }
 
-    fun step(op: StackOp) {
+    tailrec fun run(ip: Int) {
+        if (ip == program.size) // terminate, it works for empty programs too
+            return
+        val op = program[ip]
+        var next = ip
         when (op) {
             is Nop -> {}
 
@@ -84,9 +123,20 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                 val lhs = popOrThrow()
                 curr.stack += functionByOperation(op.op) (lhs, rhs)
             }
+
+            is Label -> {}
+
+            is Jump -> next = labelIndex(op.label)
+
+            is Jnz -> {
+                val labelIdx = labelIndex(op.label)
+                if (popOrThrow() != 0) next = labelIdx
+            }
         }
+        run(++next)
     }
 
-    program.forEach(::step)
+    run(0)
+
     return curr
 }
