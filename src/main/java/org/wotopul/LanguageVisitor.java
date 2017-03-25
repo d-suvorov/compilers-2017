@@ -45,6 +45,13 @@ public interface LanguageVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitRepeat(LanguageParser.RepeatContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code for}
+	 * labeled alternative in {@link LanguageParser#stmt}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFor(LanguageParser.ForContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code skip}
 	 * labeled alternative in {@link LanguageParser#stmt}.
 	 * @param ctx the parse tree

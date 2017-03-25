@@ -9,9 +9,9 @@ sealed class AbstractNode {
         class Read(val variable: String) : Program()
         class Write(val value: Expr) : Program()
 
-        class If(val condition: Expr, val thenClause: Program, val elseClause: Program): Program()
-        class While(val condition: Expr, val body: Program): Program()
-        class Repeat(val body: Program, val condition: Expr): Program()
+        class If(val condition: Expr, val thenClause: Program, val elseClause: Program) : Program()
+        class While(val condition: Expr, val body: Program) : Program()
+        class Repeat(val body: Program, val condition: Expr) : Program()
     }
 
     sealed class Expr : AbstractNode() {

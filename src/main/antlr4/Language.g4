@@ -14,6 +14,9 @@ stmt
       (ELSE elseClause=stmt)? FI              # if
     | WHILE cond=expr DO body=stmt OD         # while
     | REPEAT body=stmt UNTIL cond=expr        # repeat
+    | FOR  init=stmt ','
+           cond=expr ','
+          after=stmt DO body=stmt OD          # for
     ;
 
 elif
@@ -40,11 +43,12 @@ THEN    : 'then';
 ELIF    : 'elif';
 ELSE    : 'else';
 FI      : 'fi';
-WHILE   : 'while';
 DO      : 'do';
 OD      : 'od';
+WHILE   : 'while';
 REPEAT  : 'repeat';
 UNTIL   : 'until';
+FOR     : 'for';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;
