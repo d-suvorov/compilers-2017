@@ -65,6 +65,12 @@ fun eval(program: Program, start: Configuration): Configuration = when (program)
         val clause = if (condValue) program.thenClause else program.elseClause
         eval(clause, start)
     }
+
+    is While -> {
+        val condValue = eval(program.condition, start.environment).toBoolean()
+        if (condValue) evalSequentially(program.body, program, start)
+        else start
+    }
 }
 
 fun evalSequentially(first: Program, second: Program, start: Configuration) =

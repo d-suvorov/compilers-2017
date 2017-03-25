@@ -53,8 +53,14 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         val elseClause = ctx!!.elseClause
         val initial = if (elseClause != null) visit(elseClause) as Program else Skip
         val resultElseClause = ctx.elif().reversed().fold(initial, fun(curr, elif): Program {
-            return If(visit(elif.expr()) as Expr, visit(elif.stmt()) as Program, curr)
+            return If(visit(elif.cond) as Expr, visit(elif.elifClause) as Program, curr)
         })
-        return If(visit(ctx.expr()) as Expr, visit(ctx.thenClause) as Program, resultElseClause)
+        return If(visit(ctx.cond) as Expr, visit(ctx.thenClause) as Program, resultElseClause)
+    }
+
+    override fun visitWhile(ctx: LanguageParser.WhileContext?): While {
+        val cond = visit(ctx!!.cond) as Expr
+        val body = visit(ctx.body) as Program
+        return While(cond, body)
     }
 }

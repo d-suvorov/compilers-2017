@@ -39,9 +39,11 @@ fun compile(program: Program): List<StackOp> {
     fun compileImpl(program: Program): List<StackOp> = when (program) {
         is Program.Skip -> listOf(Nop)
         is Program.Sequence -> compileImpl(program.first) + compileImpl(program.rest)
+
         is Program.Assignment -> compile(program.value) + Store(program.variable)
         is Program.Read -> listOf(Read, Store(program.variable))
         is Program.Write -> compile(program.value) + Write
+
         is Program.If -> {
             val thenLabel = Label(nextLabel())
             val fiLabel = Label(nextLabel())
@@ -49,6 +51,8 @@ fun compile(program: Program): List<StackOp> {
                 compileImpl(program.elseClause) + Jump(fiLabel.name) +
                 thenLabel + compileImpl(program.thenClause) + fiLabel
         }
+
+        is Program.While -> TODO("not implemented yet")
     }
 
     return compileImpl(program)

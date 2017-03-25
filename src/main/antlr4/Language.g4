@@ -5,17 +5,18 @@ program
     ;
 
 stmt
-    : ST_SKIP                              # skip
-    | first=stmt ';' rest=stmt             # sequence
-    | ID ':=' expr                         # assignment
-    | ID ':=' READ '(' ')'                 # read
-    | WRITE '(' expr ')'                   # write
-    | IF expr THEN thenClause=stmt elif*
-      (ELSE elseClause=stmt)? FI           # if
+    : ST_SKIP                                 # skip
+    | first=stmt ';' rest=stmt                # sequence
+    | ID ':=' expr                            # assignment
+    | ID ':=' READ '(' ')'                    # read
+    | WRITE '(' expr ')'                      # write
+    | IF cond=expr THEN thenClause=stmt elif*
+      (ELSE elseClause=stmt)? FI              # if
+    | WHILE cond=expr DO body=stmt OD         # while
     ;
 
 elif
-    : ELIF expr THEN stmt
+    : ELIF cond=expr THEN elifClause=stmt
     ;
 
 expr
@@ -38,6 +39,9 @@ THEN    : 'then';
 ELIF    : 'elif';
 ELSE    : 'else';
 FI      : 'fi';
+WHILE   : 'while';
+DO      : 'do';
+OD      : 'od';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][a-zA-Z0-9]*;
