@@ -52,7 +52,15 @@ fun compile(program: Program): List<StackOp> {
                 thenLabel + compileImpl(program.thenClause) + fiLabel
         }
 
-        is Program.While -> TODO("not implemented yet")
+        is Program.While -> {
+            val condLabel = Label(nextLabel())
+            val bodyLabel = Label(nextLabel())
+            val odLabel = Label(nextLabel())
+            listOf(condLabel) + compile(program.condition) +
+                Jnz(bodyLabel.name) + Jump(odLabel.name) +
+                bodyLabel + compileImpl(program.body) +
+                Jump(condLabel.name) + odLabel
+        }
     }
 
     return compileImpl(program)
