@@ -1,6 +1,7 @@
 package org.wotopul
 
 import java.io.FileInputStream
+import java.io.InputStreamReader
 
 fun main(args: Array<String>) {
     val usage = """
@@ -18,7 +19,7 @@ fun main(args: Array<String>) {
     when (args[0]) {
         "-i" -> {
             try {
-                val source = readProgram(args[1])
+                val source = readFile(args[1])
                 val program = parseProgram(source)
                 val input = readInput()
                 val output = interpret(program, input)
@@ -29,7 +30,7 @@ fun main(args: Array<String>) {
         }
         "-s" -> {
             try {
-                val source = readProgram(args[1])
+                val source = readFile(args[1])
                 val program = parseProgram(source)
                 val stackProgram = compile(program)
                 val input = readInput()
@@ -49,8 +50,8 @@ fun main(args: Array<String>) {
     }
 }
 
-fun readProgram(filename: String) = FileInputStream(filename).reader().use { it.readText() }
+fun readFile(filename: String) = FileInputStream(filename).reader().use { it.readText() }
 
-fun readInput(): List<Int> = System.`in`.reader().use {
-    it.readLines().map(String::toInt)
-}
+fun readInput(): List<Int> = readIntegers(System.`in`.reader())
+
+fun readIntegers(reader: InputStreamReader) = reader.use { it.readLines().map(String::toInt) }
