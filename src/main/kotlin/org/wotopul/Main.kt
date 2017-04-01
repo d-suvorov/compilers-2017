@@ -32,7 +32,7 @@ fun main(args: Array<String>) {
             try {
                 val source = readFile(args[1])
                 val program = parseProgram(source)
-                val stackProgram = compile(program)
+                val stackProgram = compile(program.main)
                 val input = readInput()
                 val output = interpret(stackProgram, input)
                 output.forEach(::print)

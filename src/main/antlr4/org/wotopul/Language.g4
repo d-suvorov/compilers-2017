@@ -1,7 +1,16 @@
 grammar Language;
 
 program
-    : stmt
+    : functionDefinition* stmt
+    ;
+
+functionDefinition
+    : FUN ID '(' params ')' BEGIN stmt END
+    ;
+
+params
+    : ID (',' ID)*
+    |
     ;
 
 stmt
@@ -17,6 +26,7 @@ stmt
     | FOR  init=stmt ','
            cond=expr ','
           after=stmt DO body=stmt OD          # for
+    | function_                               # functionStatement
     ;
 
 elif
@@ -33,6 +43,16 @@ expr
     | left=expr op='||'                      right=expr # infix
     | name=ID                                           # variable
     | value=NUM                                         # const
+    | function_                                         # function
+    ;
+
+function_
+    : ID '(' args ')'
+    ;
+
+args
+    : expr (',' expr)*
+    |
     ;
 
 ST_SKIP : 'skip';
@@ -49,6 +69,9 @@ WHILE   : 'while';
 REPEAT  : 'repeat';
 UNTIL   : 'until';
 FOR     : 'for';
+FUN     : 'fun';
+BEGIN   : 'begin';
+END     : 'end';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;

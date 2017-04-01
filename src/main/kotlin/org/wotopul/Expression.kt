@@ -1,7 +1,7 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.Expr
-import org.wotopul.AbstractNode.Expr.*
+import org.wotopul.Expr.*
+import org.wotopul.Expr.Function
 
 fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
     "*" -> { x, y -> x * y }
@@ -39,4 +39,6 @@ fun eval(expr: Expr, env: Map<String, Int>): Int = when (expr) {
         val right = eval(expr.rhs, env)
         functionByOperation(expr.op) (left, right)
     }
+
+    is Function -> TODO("unimplemented yet")
 }

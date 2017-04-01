@@ -1,22 +1,36 @@
 package org.wotopul
 
-sealed class AbstractNode {
-    sealed class Program : AbstractNode() {
-        object Skip : Program()
-        class Sequence(val first: Program, val rest: Program) : Program()
+open class AbstractNode
 
-        class Assignment(val variable: String, val value: Expr) : Program()
-        class Read(val variable: String) : Program()
-        class Write(val value: Expr) : Program()
+class Program(
+    val functions: List<FunctionDefinition>,
+    val main: Statement
+) : AbstractNode()
 
-        class If(val condition: Expr, val thenClause: Program, val elseClause: Program) : Program()
-        class While(val condition: Expr, val body: Program) : Program()
-        class Repeat(val body: Program, val condition: Expr) : Program()
-    }
+class FunctionDefinition(
+    val name: String,
+    val params: List<String>,
+    val body: Statement
+) : AbstractNode()
 
-    sealed class Expr : AbstractNode() {
-        class Const(val value: Int) : Expr()
-        class Variable(val name: String) : Expr()
-        class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
-    }
+sealed class Statement : AbstractNode() {
+    object Skip : Statement()
+    class Sequence(val first: Statement, val rest: Statement) : Statement()
+
+    class Assignment(val variable: String, val value: Expr) : Statement()
+    class Read(val variable: String) : Statement()
+    class Write(val value: Expr) : Statement()
+
+    class If(val condition: Expr, val thenClause: Statement, val elseClause: Statement) : Statement()
+    class While(val condition: Expr, val body: Statement) : Statement()
+    class Repeat(val body: Statement, val condition: Expr) : Statement()
+
+    class FunctionStatement(val name: String, args: List<Expr>) : Statement()
+}
+
+sealed class Expr : AbstractNode() {
+    class Const(val value: Int) : Expr()
+    class Variable(val name: String) : Expr()
+    class Function(val name: String, args: List<Expr>) : Expr()
+    class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
 }

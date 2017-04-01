@@ -1,13 +1,12 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.Expr
-import org.wotopul.AbstractNode.Program
+fun programOf(statement: Statement) = Program(emptyList(), statement)
 
-fun sequence(vararg statements: Program): Program {
-    fun sequence(statements: List<Program>): Program =
+fun sequence(vararg statements: Statement): Statement {
+    fun sequence(statements: List<Statement>): Statement =
         when (statements.size) {
-            0 -> Program.Skip
-            else -> Program.Sequence(
+            0 -> Statement.Skip
+            else -> Statement.Sequence(
                 statements.first(),
                 sequence(statements.subList(1, statements.size))
             )

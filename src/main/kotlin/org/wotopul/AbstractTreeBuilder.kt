@@ -1,17 +1,33 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.Expr
-import org.wotopul.AbstractNode.Expr.*
-import org.wotopul.AbstractNode.Program
-import org.wotopul.AbstractNode.Program.*
+import org.wotopul.Expr.*
+import org.wotopul.Expr.Function
+import org.wotopul.Statement.*
 
 class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
+    override fun visitProgram(ctx: LanguageParser.ProgramContext?): Program {
+        // TODO no functions?
+        val functions = ctx!!.functionDefinition().map { visit(it) as FunctionDefinition }
+        val main = visit(ctx.stmt()) as Statement
+        return Program(functions, main)
+    }
+
+    override fun visitFunctionDefinition(
+        ctx: LanguageParser.FunctionDefinitionContext?): FunctionDefinition
+    {
+        // TODO no parameters?
+        val name = ctx!!.ID().text
+        val params = ctx.params().ID().map { it.text }
+        val body = visit(ctx.stmt()) as Statement
+        return FunctionDefinition(name, params, body)
+    }
+
     override fun visitSkip(ctx: LanguageParser.SkipContext?) = Skip
 
     override fun visitSequence(ctx: LanguageParser.SequenceContext?) =
         Sequence(
-            visit(ctx!!.first) as Program,
-            visit(ctx.rest) as Program)
+            visit(ctx!!.first) as Statement,
+            visit(ctx.rest) as Statement)
 
     override fun visitWrite(ctx: LanguageParser.WriteContext?) =
         Write(visit(ctx!!.expr()) as Expr)
@@ -27,6 +43,11 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Const(value)
     }
 
+    override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {
+        val name = ctx!!.ID().text
+        return Variable(name)
+    }
+
     override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode =
         // children by their indices must be:
         // 0 - open parenthesis, 1 - expression, 2 - close parenthesis
@@ -39,9 +60,11 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Binop(op, lhs, rhs)
     }
 
-    override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {
-        val name = ctx!!.ID().text
-        return Variable(name)
+    override fun visitFunction(ctx: LanguageParser.FunctionContext?): Function {
+        // TODO no args?
+        val name = ctx!!.function_().ID().text
+        val args = ctx.function_().args().expr().map { visit(it) as Expr }
+        return Function(name, args)
     }
 
     override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
@@ -51,34 +74,44 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
 
     override fun visitIf(ctx: LanguageParser.IfContext?): If {
         val elseClause = ctx!!.elseClause
-        val initial = if (elseClause != null) visit(elseClause) as Program else Skip
-        val resultElseClause = ctx.elif().reversed().fold(initial, fun(curr, elif): Program {
-            return If(visit(elif.cond) as Expr, visit(elif.elifClause) as Program, curr)
+        val initial = if (elseClause != null) visit(elseClause) as Statement else Skip
+        val resultElseClause = ctx.elif().reversed().fold(initial, fun(curr, elif): Statement {
+            return If(visit(elif.cond) as Expr, visit(elif.elifClause) as Statement, curr)
         })
-        return If(visit(ctx.cond) as Expr, visit(ctx.thenClause) as Program, resultElseClause)
+        return If(visit(ctx.cond) as Expr, visit(ctx.thenClause) as Statement, resultElseClause)
     }
 
     override fun visitWhile(ctx: LanguageParser.WhileContext?): While {
         val cond = visit(ctx!!.cond) as Expr
-        val body = visit(ctx.body) as Program
+        val body = visit(ctx.body) as Statement
         return While(cond, body)
     }
 
     override fun visitRepeat(ctx: LanguageParser.RepeatContext?): Repeat {
-        val body = visit(ctx!!.body) as Program
+        val body = visit(ctx!!.body) as Statement
         val cond = visit(ctx.cond) as Expr
         return Repeat(body, cond)
     }
 
-    override fun visitFor(ctx: LanguageParser.ForContext?): Program =
+    override fun visitFor(ctx: LanguageParser.ForContext?): Statement =
         Sequence(
-            visit(ctx!!.init) as Program,
+            visit(ctx!!.init) as Statement,
             While(
                 visit(ctx.cond) as Expr,
                 Sequence(
-                    visit(ctx.body) as Program,
-                    visit(ctx.after) as Program
+                    visit(ctx.body) as Statement,
+                    visit(ctx.after) as Statement
                 )
             )
         )
+
+    // TODO eliminate cut'n'paste
+    override fun visitFunctionStatement(
+        ctx: LanguageParser.FunctionStatementContext?): FunctionStatement
+    {
+        // TODO no args?
+        val name = ctx!!.function_().ID().text
+        val args = ctx.function_().args().expr().map { visit(it) as Expr }
+        return FunctionStatement(name, args)
+    }
 }

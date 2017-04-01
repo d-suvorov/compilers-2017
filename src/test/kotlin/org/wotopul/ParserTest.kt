@@ -3,15 +3,15 @@ package org.wotopul
 import org.antlr.v4.runtime.ANTLRInputStream
 import org.antlr.v4.runtime.CommonTokenStream
 import org.junit.Test
-import org.wotopul.AbstractNode.Expr.Const
-import org.wotopul.AbstractNode.Expr.Variable
-import org.wotopul.AbstractNode.Program.*
+import org.wotopul.Expr.Const
+import org.wotopul.Expr.Variable
+import org.wotopul.Statement.*
 
 class ParserTest {
     @Test
     fun test() {
         val input = """
-            read(n);
+            n := read();
             n := 1 + 3 * n;
             n := 1 + 3 * n;
             n := 1 + 3 * n;
@@ -21,13 +21,13 @@ class ParserTest {
         val parser = LanguageParser(CommonTokenStream(lexer))
         val program = parser.program()
         val actual = AbstractTreeBuilder().visit(program)
-        val expected = sequence(
+        val expected = programOf(sequence(
             Read("n"),
             Assignment("n", Const(1) + Const(3) * Variable("n")),
             Assignment("n", Const(1) + Const(3) * Variable("n")),
             Assignment("n", Const(1) + Const(3) * Variable("n")),
             Write(Variable("n"))
-        )
+        ))
         // TODO is ';' left or right associative?
         // TODO rewrite Utils so that sequence does not insert Skip
     }

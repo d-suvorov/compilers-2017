@@ -1,7 +1,5 @@
 package org.wotopul
 
-import org.wotopul.AbstractNode.Expr
-import org.wotopul.AbstractNode.Program
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
@@ -25,9 +23,10 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Const -> listOf(Push(expr.value))
     is Expr.Variable -> listOf(Load(expr.name))
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
+    is Expr.Function -> TODO("unimplemented yet")
 }
 
-fun compile(program: Program): List<StackOp> {
+fun compile(statement: Statement): List<StackOp> {
     var labelCounter = 0
 
     fun nextLabel(): String {
@@ -36,41 +35,43 @@ fun compile(program: Program): List<StackOp> {
         return res
     }
 
-    fun compileImpl(program: Program): List<StackOp> = when (program) {
-        is Program.Skip -> listOf(Nop)
-        is Program.Sequence -> compileImpl(program.first) + compileImpl(program.rest)
+    fun compileImpl(statement: Statement): List<StackOp> = when (statement) {
+        is Statement.Skip -> listOf(Nop)
+        is Statement.Sequence -> compileImpl(statement.first) + compileImpl(statement.rest)
 
-        is Program.Assignment -> compile(program.value) + Store(program.variable)
-        is Program.Read -> listOf(Read, Store(program.variable))
-        is Program.Write -> compile(program.value) + Write
+        is Statement.Assignment -> compile(statement.value) + Store(statement.variable)
+        is Statement.Read -> listOf(Read, Store(statement.variable))
+        is Statement.Write -> compile(statement.value) + Write
 
-        is Program.If -> {
+        is Statement.If -> {
             val thenLabel = Label(nextLabel())
             val fiLabel = Label(nextLabel())
-            compile(program.condition) + Jnz(thenLabel.name) +
-                compileImpl(program.elseClause) + Jump(fiLabel.name) +
-                thenLabel + compileImpl(program.thenClause) + fiLabel
+            compile(statement.condition) + Jnz(thenLabel.name) +
+                compileImpl(statement.elseClause) + Jump(fiLabel.name) +
+                thenLabel + compileImpl(statement.thenClause) + fiLabel
         }
 
-        is Program.While -> {
+        is Statement.While -> {
             val condLabel = Label(nextLabel())
             val bodyLabel = Label(nextLabel())
             val odLabel = Label(nextLabel())
-            listOf(condLabel) + compile(program.condition) +
+            listOf(condLabel) + compile(statement.condition) +
                 Jnz(bodyLabel.name) + Jump(odLabel.name) +
-                bodyLabel + compileImpl(program.body) +
+                bodyLabel + compileImpl(statement.body) +
                 Jump(condLabel.name) + odLabel
         }
 
-        is Program.Repeat -> {
+        is Statement.Repeat -> {
             val beginLabel = Label(nextLabel())
             val endLabel = Label(nextLabel())
-            listOf(beginLabel) + compileImpl(program.body) + compile(program.condition) +
+            listOf(beginLabel) + compileImpl(statement.body) + compile(statement.condition) +
                 Jnz(endLabel.name) + Jump(beginLabel.name) + endLabel
         }
+
+        is Statement.FunctionStatement -> TODO("unimplemented yet")
     }
 
-    return compileImpl(program)
+    return compileImpl(statement)
 }
 
 class StackConf(
