@@ -4,12 +4,13 @@ import org.wotopul.Configuration.OutputItem
 import org.wotopul.Statement.*
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
-    eval(program.main, Configuration(input)).output
+    eval(program.main, Configuration(input, program)).output
 
 open class Configuration(
     open val input: List<Int>,
     open val output: List<OutputItem> = emptyList(),
-    open val environment: Map<String, Int> = emptyMap())
+    open val environment: Map<String, Int> = emptyMap(),
+    val functions: Map<String, FunctionDefinition> = emptyMap())
 {
     sealed class OutputItem {
         object Prompt : OutputItem()
@@ -30,14 +31,20 @@ open class Configuration(
             is Number -> "$value\n"
         }
     }
+
+    constructor(input: List<Int>, program: Program)
+        : this(input, functions = program.functions.associateBy({ it.name }))
+
+    fun updateEnvironment(newEnv: Map<String, Int>) =
+        Configuration(this.input, this.output, newEnv, this.functions)
 }
 
-fun eval(statement: Statement, start: Configuration): Configuration = when (statement) {
+fun eval(stmt: Statement, start: Configuration): Configuration = when (stmt) {
     is Skip -> start
 
     is Assignment -> {
-        val value = eval(statement.value, start.environment)
-        val name = statement.variable
+        val value = eval(stmt.value, start)
+        val name = stmt.variable
         val updated = start.environment + (name to value)
         Configuration(start.input, start.output, updated)
     }
@@ -47,37 +54,52 @@ fun eval(statement: Statement, start: Configuration): Configuration = when (stat
             throw ExecutionException("input is empty")
         val inputHead = start.input.first()
         val inputTail = start.input.subList(1, start.input.size)
-        val name = statement.variable
+        val name = stmt.variable
         val updated = start.environment + (name to inputHead)
         Configuration(inputTail, start.output + OutputItem.Prompt, updated)
     }
 
     is Write -> {
-        val value = eval(statement.value, start.environment)
+        val value = eval(stmt.value, start)
         Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
     }
 
-    is Sequence -> evalSequentially(statement.first, statement.rest, start)
+    is Sequence -> evalSequentially(stmt.first, stmt.rest, start)
 
     is If -> {
-        val condValue = eval(statement.condition, start.environment).toBoolean()
-        val clause = if (condValue) statement.thenClause else statement.elseClause
+        val condValue = eval(stmt.condition, start).toBoolean()
+        val clause = if (condValue) stmt.thenClause else stmt.elseClause
         eval(clause, start)
     }
 
     is While -> {
-        val condValue = eval(statement.condition, start.environment).toBoolean()
-        if (condValue) evalSequentially(statement.body, statement, start)
+        val condValue = eval(stmt.condition, start).toBoolean()
+        if (condValue) evalSequentially(stmt.body, stmt, start)
         else start
     }
 
     is Repeat -> {
-        val afterFirst = eval(statement.body, start)
-        val condValue = eval(statement.condition, afterFirst.environment).toBoolean()
-        if (!condValue) eval(statement, afterFirst) else afterFirst
+        val afterFirst = eval(stmt.body, start)
+        val condValue = eval(stmt.condition, afterFirst).toBoolean()
+        if (!condValue) eval(stmt, afterFirst) else afterFirst
     }
 
-    is FunctionStatement -> TODO("unimplemented")
+    is FunctionStatement -> {
+        val definition = start.functions[stmt.name]
+            ?: throw ExecutionException("undefined function: ${stmt.name}")
+        if (definition.params.size != stmt.args.size) {
+            throw ExecutionException("cannot apply function ${stmt.name}" +
+                " to ${stmt.args.size} arguments")
+        }
+        val argsEnv = HashMap<String, Int>()
+        for (i in stmt.args.indices) {
+            val paramName = definition.params[i]
+            val paramValue = eval(stmt.args[i], start)
+            argsEnv.put(paramName, paramValue)
+        }
+        val local = start.updateEnvironment(argsEnv)
+        eval(definition.body, local).updateEnvironment(start.environment)
+    }
 }
 
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
