@@ -68,6 +68,8 @@ fun compile(statement: Statement): List<StackOp> {
                 Jnz(endLabel.name) + Jump(beginLabel.name) + endLabel
         }
 
+        is Statement.Return -> TODO("unimplemented yet")
+
         is Statement.FunctionStatement -> TODO("unimplemented yet")
     }
 

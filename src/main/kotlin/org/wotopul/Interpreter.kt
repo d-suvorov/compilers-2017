@@ -37,70 +37,87 @@ open class Configuration(
 
     fun updateEnvironment(newEnv: Map<String, Int>) =
         Configuration(this.input, this.output, newEnv, this.functions)
+
+    fun returned() = returnValueVarName in environment
+
+    fun returnValue() = environment[returnValueVarName]
+        ?: throw ExecutionException("return statement expected")
+
+    fun updateReturnValue(value: Int) =
+        updateEnvironment(environment + (returnValueVarName to value))
+
+    companion object { val returnValueVarName = "return" }
 }
 
-fun eval(stmt: Statement, start: Configuration): Configuration = when (stmt) {
-    is Skip -> start
+fun eval(stmt: Statement, start: Configuration): Configuration =
+    if (start.returned()) start
+    else when (stmt) {
+        is Skip -> start
 
-    is Assignment -> {
-        val value = eval(stmt.value, start)
-        val name = stmt.variable
-        val updated = start.environment + (name to value)
-        Configuration(start.input, start.output, updated)
-    }
-
-    is Read -> {
-        if (start.input.isEmpty())
-            throw ExecutionException("input is empty")
-        val inputHead = start.input.first()
-        val inputTail = start.input.subList(1, start.input.size)
-        val name = stmt.variable
-        val updated = start.environment + (name to inputHead)
-        Configuration(inputTail, start.output + OutputItem.Prompt, updated)
-    }
-
-    is Write -> {
-        val value = eval(stmt.value, start)
-        Configuration(start.input, start.output + OutputItem.Number(value), start.environment)
-    }
-
-    is Sequence -> evalSequentially(stmt.first, stmt.rest, start)
-
-    is If -> {
-        val condValue = eval(stmt.condition, start).toBoolean()
-        val clause = if (condValue) stmt.thenClause else stmt.elseClause
-        eval(clause, start)
-    }
-
-    is While -> {
-        val condValue = eval(stmt.condition, start).toBoolean()
-        if (condValue) evalSequentially(stmt.body, stmt, start)
-        else start
-    }
-
-    is Repeat -> {
-        val afterFirst = eval(stmt.body, start)
-        val condValue = eval(stmt.condition, afterFirst).toBoolean()
-        if (!condValue) eval(stmt, afterFirst) else afterFirst
-    }
-
-    is FunctionStatement -> {
-        val definition = start.functions[stmt.name]
-            ?: throw ExecutionException("undefined function: ${stmt.name}")
-        if (definition.params.size != stmt.args.size) {
-            throw ExecutionException("cannot apply function ${stmt.name}" +
-                " to ${stmt.args.size} arguments")
+        is Assignment -> {
+            val value = eval(stmt.value, start)
+            val name = stmt.variable
+            val updated = start.environment + (name to value)
+            Configuration(start.input, start.output, updated, start.functions)
         }
-        val argsEnv = HashMap<String, Int>()
-        for (i in stmt.args.indices) {
-            val paramName = definition.params[i]
-            val paramValue = eval(stmt.args[i], start)
-            argsEnv.put(paramName, paramValue)
+
+        is Read -> {
+            if (start.input.isEmpty())
+                throw ExecutionException("input is empty")
+            val inputHead = start.input.first()
+            val inputTail = start.input.subList(1, start.input.size)
+            val name = stmt.variable
+            val updated = start.environment + (name to inputHead)
+            Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
         }
-        val local = start.updateEnvironment(argsEnv)
-        eval(definition.body, local).updateEnvironment(start.environment)
+
+        is Write -> {
+            val value = eval(stmt.value, start)
+            val updatedOutput = start.output + OutputItem.Number(value)
+            Configuration(start.input, updatedOutput, start.environment, start.functions)
+        }
+
+        is Sequence -> evalSequentially(stmt.first, stmt.rest, start)
+
+        is If -> {
+            val condValue = eval(stmt.condition, start).toBoolean()
+            val clause = if (condValue) stmt.thenClause else stmt.elseClause
+            eval(clause, start)
+        }
+
+        is While -> {
+            val condValue = eval(stmt.condition, start).toBoolean()
+            if (condValue) evalSequentially(stmt.body, stmt, start)
+            else start
+        }
+
+        is Repeat -> {
+            val afterFirst = eval(stmt.body, start)
+            val condValue = eval(stmt.condition, afterFirst).toBoolean()
+            if (!condValue) eval(stmt, afterFirst) else afterFirst
+        }
+
+        is Return -> start.updateReturnValue(eval(stmt.value, start))
+
+        is FunctionStatement -> evalFunction(stmt.function, start)
     }
-}
 
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
     eval(second, eval(first, start))
+
+fun evalFunction(function: FunctionCall, conf: Configuration): Configuration {
+    val definition = conf.functions[function.name]
+        ?: throw ExecutionException("undefined function: ${function.name}")
+    if (definition.params.size != function.args.size) {
+        throw ExecutionException("cannot apply function ${function.name}" +
+            " to ${function.args.size} arguments")
+    }
+    val argsEnv = HashMap<String, Int>()
+    for (i in function.args.indices) {
+        val paramName = definition.params[i]
+        val paramValue = eval(function.args[i], conf)
+        argsEnv.put(paramName, paramValue)
+    }
+    val local = conf.updateEnvironment(argsEnv)
+    return eval(definition.body, local).updateEnvironment(conf.environment)
+}

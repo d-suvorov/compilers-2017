@@ -26,6 +26,7 @@ stmt
     | FOR  init=stmt ','
            cond=expr ','
           after=stmt DO body=stmt OD          # for
+    | RETURN expr                             # returnStatement
     | function_                               # functionStatement
     ;
 
@@ -72,6 +73,7 @@ FOR     : 'for';
 FUN     : 'fun';
 BEGIN   : 'begin';
 END     : 'end';
+RETURN  : 'return';
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;

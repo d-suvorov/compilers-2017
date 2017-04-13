@@ -64,7 +64,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         // TODO no args?
         val name = ctx!!.function_().ID().text
         val args = ctx.function_().args().expr().map { visit(it) as Expr }
-        return Function(name, args)
+        return Function(FunctionCall(name, args))
     }
 
     override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
@@ -105,6 +105,11 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
             )
         )
 
+    override fun visitReturnStatement(ctx: LanguageParser.ReturnStatementContext?): Return {
+        val value = visit(ctx!!.expr()) as Expr
+        return Return(value)
+    }
+
     // TODO eliminate cut'n'paste
     override fun visitFunctionStatement(
         ctx: LanguageParser.FunctionStatementContext?): FunctionStatement
@@ -112,6 +117,6 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         // TODO no args?
         val name = ctx!!.function_().ID().text
         val args = ctx.function_().args().expr().map { visit(it) as Expr }
-        return FunctionStatement(name, args)
+        return FunctionStatement(FunctionCall(name, args))
     }
 }
