@@ -99,13 +99,13 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
 
         is Return -> start.updateReturnValue(eval(stmt.value, start))
 
-        is FunctionStatement -> evalFunction(stmt.function, start)
+        is FunctionStatement -> evalFunction(stmt.function, start).first
     }
 
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
     eval(second, eval(first, start))
 
-fun evalFunction(function: FunctionCall, conf: Configuration): Configuration {
+fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Int> {
     val definition = conf.functions[function.name]
         ?: throw ExecutionException("undefined function: ${function.name}")
     if (definition.params.size != function.args.size) {
@@ -119,5 +119,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Configuration {
         argsEnv.put(paramName, paramValue)
     }
     val local = conf.updateEnvironment(argsEnv)
-    return eval(definition.body, local).updateEnvironment(conf.environment)
+    val after = eval(definition.body, local)
+    val returnValue = after.returnValue()
+    return Pair(after.updateEnvironment(conf.environment), returnValue)
 }

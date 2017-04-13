@@ -40,5 +40,5 @@ fun eval(expr: Expr, conf: Configuration): Int = when (expr) {
         functionByOperation(expr.op) (left, right)
     }
 
-    is Function -> evalFunction(expr.function, conf).returnValue()
+    is Function -> evalFunction(expr.function, conf).second
 }
