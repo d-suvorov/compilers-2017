@@ -1,7 +1,7 @@
 package org.wotopul
 
 import org.wotopul.Expr.*
-import org.wotopul.Expr.Function
+import org.wotopul.Expr.FunctionExpr
 
 fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
     "*" -> { x, y -> x * y }
@@ -43,5 +43,5 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Int> = when (expr
         Pair(afterRight, functionByOperation(expr.op) (left, right))
     }
 
-    is Function -> evalFunction(expr.function, conf)
+    is FunctionExpr -> evalFunction(expr.function, conf)
 }

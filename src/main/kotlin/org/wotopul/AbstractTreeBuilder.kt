@@ -1,12 +1,10 @@
 package org.wotopul
 
 import org.wotopul.Expr.*
-import org.wotopul.Expr.Function
 import org.wotopul.Statement.*
 
 class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitProgram(ctx: LanguageParser.ProgramContext?): Program {
-        // TODO no functions?
         val functions = ctx!!.functionDefinition().map { visit(it) as FunctionDefinition }
         val main = visit(ctx.stmt()) as Statement
         return Program(functions, main)
@@ -15,7 +13,6 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitFunctionDefinition(
         ctx: LanguageParser.FunctionDefinitionContext?): FunctionDefinition
     {
-        // TODO no parameters?
         val name = ctx!!.ID().text
         val params = ctx.params().ID().map { it.text }
         val body = visit(ctx.stmt()) as Statement
@@ -60,12 +57,8 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Binop(op, lhs, rhs)
     }
 
-    override fun visitFunction(ctx: LanguageParser.FunctionContext?): Function {
-        // TODO no args?
-        val name = ctx!!.function_().ID().text
-        val args = ctx.function_().args().expr().map { visit(it) as Expr }
-        return Function(FunctionCall(name, args))
-    }
+    override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
+        FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 
     override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
         val name = ctx!!.ID().text
@@ -93,7 +86,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Repeat(body, cond)
     }
 
-    override fun visitFor(ctx: LanguageParser.ForContext?): Statement =
+    override fun visitFor(ctx: LanguageParser.ForContext?) =
         Sequence(
             visit(ctx!!.init) as Statement,
             While(
@@ -110,13 +103,12 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Return(value)
     }
 
-    // TODO eliminate cut'n'paste
-    override fun visitFunctionStatement(
-        ctx: LanguageParser.FunctionStatementContext?): FunctionStatement
-    {
-        // TODO no args?
-        val name = ctx!!.function_().ID().text
-        val args = ctx.function_().args().expr().map { visit(it) as Expr }
-        return FunctionStatement(FunctionCall(name, args))
+    override fun visitFunctionStatement(ctx: LanguageParser.FunctionStatementContext?) =
+        FunctionStatement(visitFunctionImpl(ctx!!.function_()))
+
+    fun visitFunctionImpl(function: LanguageParser.Function_Context): FunctionCall {
+        val name = function.ID().text
+        val args = function.args().expr().map { visit(it) as Expr }
+        return FunctionCall(name, args)
     }
 }

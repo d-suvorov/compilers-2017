@@ -23,7 +23,7 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Const -> listOf(Push(expr.value))
     is Expr.Variable -> listOf(Load(expr.name))
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
-    is Expr.Function -> TODO("unimplemented yet")
+    is Expr.FunctionExpr -> TODO("unimplemented yet")
 }
 
 fun compile(statement: Statement): List<StackOp> {
