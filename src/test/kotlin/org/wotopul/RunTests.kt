@@ -5,7 +5,7 @@ import java.io.File
 fun main(args: Array<String>) {
     val baseDir = "compiler-tests/"
     var success = true
-    for (suite in arrayOf(/*"core", */ "core" /*, "deep-expressions"*/)) {
+    for (suite in arrayOf(/*"core", */ "expressions" /*, "deep-expressions"*/)) {
         val testDir = "$baseDir/$suite"
         val list: List<String> = File(testDir).list().sorted()
             .filter({ it.endsWith(".expr") })

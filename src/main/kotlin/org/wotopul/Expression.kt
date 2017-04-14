@@ -28,17 +28,20 @@ fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
 fun Boolean.toInt(): Int = if (this) 1 else 0
 fun Int.toBoolean(): Boolean = this != 0
 
-fun eval(expr: Expr, conf: Configuration): Int = when (expr) {
-    is Const -> expr.value
+fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Int> = when (expr) {
+    is Const -> Pair(conf, expr.value)
 
-    is Variable -> conf.environment[expr.name]
-        ?: throw ExecutionException("undefined variable: ${expr.name}")
-
-    is Binop -> {
-        val left = eval(expr.lhs, conf)
-        val right = eval(expr.rhs, conf)
-        functionByOperation(expr.op) (left, right)
+    is Variable -> {
+        val value = (conf.environment[expr.name]
+            ?: throw ExecutionException("undefined variable: ${expr.name}"))
+        Pair(conf, value)
     }
 
-    is Function -> evalFunction(expr.function, conf).second
+    is Binop -> {
+        val (afterLeft, left) = eval(expr.lhs, conf)
+        val (afterRight, right) = eval(expr.rhs, afterLeft)
+        Pair(afterRight, functionByOperation(expr.op) (left, right))
+    }
+
+    is Function -> evalFunction(expr.function, conf)
 }
