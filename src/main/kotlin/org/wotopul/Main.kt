@@ -1,6 +1,7 @@
 package org.wotopul
 
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.InputStreamReader
 
 fun main(args: Array<String>) {
@@ -16,6 +17,7 @@ fun main(args: Array<String>) {
         println(usage)
         System.exit(0)
     }
+    // TODO clean up
     when (args[0]) {
         "-i" -> {
             try {
@@ -41,7 +43,16 @@ fun main(args: Array<String>) {
             }
         }
         "-o" -> {
-            println("Compilation is not supported yet")
+            val source = readFile(args[1])
+            val program = parseProgram(source)
+            val stackProgram = compile(program.main)
+            val asm = compile(stackProgram)
+
+            // write generated asm to a file
+            val asmFilename = args[1].replaceAfterLast(".", "s") // TODO no extension
+            FileOutputStream(asmFilename).bufferedWriter().use { it.write(asm) }
+
+            // invoke assembler (GCC)
         }
         else -> {
             println("Unknown option: " + args[0])

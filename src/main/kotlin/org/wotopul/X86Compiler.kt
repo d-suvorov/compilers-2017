@@ -10,6 +10,7 @@ val registers: List<String> = listOf(
 )
 
 val eaxIdx = registers.indexOf("%eax")
+val eax = Operand.Register(eaxIdx)
 
 sealed class X86Instr {
     sealed class Operand {
@@ -60,6 +61,8 @@ class X86Configuration(
         locals += name
     }
 
+    fun top(): Operand = symbolStack.last()
+
     fun push(): Operand {
         fun next(size: Int): Operand =
             when (size) {
@@ -71,6 +74,8 @@ class X86Configuration(
         symbolStack += top
         return top
     }
+
+    fun pop() = symbolStack.removeAt(symbolStack.lastIndex)
 }
 
 fun compile(program: List<StackOp>): String {
@@ -80,13 +85,41 @@ fun compile(program: List<StackOp>): String {
 
         fun compile(op: StackOp) {
             when (op) {
-                is Nop -> TODO("unimplemented yet")
-                is Read -> TODO("unimplemented yet")
-                is Write -> TODO("unimplemented yet")
-                is Push -> TODO("unimplemented yet")
+                is Nop -> { /* very optimizing compiler */ }
+
+                is Read -> {
+                    val top = conf.push()
+                    assert(top == Operand.Register(0))
+                    result += listOf(
+                        X86Instr.Call("read"),
+                        X86Instr.Move(eax, top)
+                    )
+                }
+
+                is Write -> {
+                    val top = conf.pop()
+                    assert(top == Operand.Register(0))
+                    result += listOf(
+                        X86Instr.Push(top),
+                        X86Instr.Call("write")
+                        // TODO push return value of `write` to a symbol stack?
+                    )
+                }
+
+                is Push -> {
+                    val top = conf.push()
+                    result += X86Instr.Move(Operand.Literal(op.value), top)
+                }
+
                 is Load -> TODO("unimplemented yet")
                 is Store -> TODO("unimplemented yet")
-                is Binop -> TODO("unimplemented yet")
+
+                is Binop -> {
+                    val opnd = conf.pop()
+                    val dst = conf.top()
+                    result += X86Instr.Binop(op.op, opnd, dst)
+                }
+
                 is Label -> TODO("unimplemented yet")
                 is Jump -> TODO("unimplemented yet")
                 is Jnz -> TODO("unimplemented yet")
@@ -100,5 +133,5 @@ fun compile(program: List<StackOp>): String {
     val (res, conf) = compileImpl(program)
     return res
         .map { it.toString() }
-        .reduce(String::plus)
+        .reduce {acc, instr -> "$acc\n$instr"}
 }
