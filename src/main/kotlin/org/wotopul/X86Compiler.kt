@@ -32,24 +32,40 @@ sealed class X86Instr {
     class Call(val name: String): X86Instr()
     class Push(val opnd: Operand): X86Instr()
     class Pop(val opnd: Operand): X86Instr()
+    class SetCC(val op: String, val dst: String) : X86Instr()
     object Ret : X86Instr()
+    object Cltd : X86Instr()
 
     override fun toString(): String = when (this) {
-        is Binop -> when (op) {
-            "+" -> "addl\t$opnd1,\t$opnd2"
-            "*" -> "imull\t$opnd1,\t$opnd2"
-            else -> TODO("unsupported operation: $op")
+        is Binop -> {
+            val instrName = when (op) {
+                "+" -> "addl"
+                "-" -> "subl"
+                "*" -> "imull"
+                "/" -> "idiv"
+
+                "and" -> "andl"
+                "or" -> "orl"
+                "xor" -> "xor"
+
+                "cmp" -> "cmp"
+
+                else -> throw AssertionError("unknown binop: $op")
+            }
+            "$instrName\t$opnd1,\t$opnd2"
         }
 
         is Move -> "movl\t$src,\t$dst"
 
-        is Call -> "call\t$name"
-
         is Push -> "pushl\t$opnd"
-
         is Pop -> "popl\t$opnd"
 
+        is SetCC -> "set$op\t$dst"
+
+        is Call -> "call\t$name"
         is Ret -> "ret"
+
+        is Cltd -> "cltd"
     }
 }
 
@@ -130,9 +146,24 @@ fun compile(program: List<StackOp>): String {
                 }
 
                 is Binop -> {
-                    val opnd = conf.pop()
-                    val dst = conf.top()
-                    result += X86Instr.Binop(op.op, opnd, dst)
+                    when (op.op) {
+                        "+", "-", "*" -> {
+                            // TODO support both operands on stack
+                            val opnd = conf.pop()
+                            val dst = conf.top()
+                            result += X86Instr.Binop(op.op, opnd, dst)
+                        }
+
+                        "/", "%" -> TODO("unimplemented yet")
+
+                        "&&" -> TODO("unimplemented yet")
+
+                        "||" -> TODO("unimplemented yet")
+
+                        "<", "<=", ">", ">=", "==", "!=" -> {
+                            TODO("unimplemented yet")
+                        }
+                    }
                 }
 
                 is Label -> TODO("unimplemented yet")
