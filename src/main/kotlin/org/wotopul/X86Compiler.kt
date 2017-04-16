@@ -148,10 +148,17 @@ fun compile(program: List<StackOp>): String {
                 is Binop -> {
                     when (op.op) {
                         "+", "-", "*" -> {
-                            // TODO support both operands on stack
-                            val opnd = conf.pop()
+                            val src = conf.pop()
                             val dst = conf.top()
-                            result += X86Instr.Binop(op.op, opnd, dst)
+                            if (dst is Operand.Register) {
+                                result += X86Instr.Binop(op.op, src, dst)
+                            } else {
+                                result += listOf(
+                                    X86Instr.Move(dst, eax),
+                                    X86Instr.Binop(op.op, src, eax),
+                                    X86Instr.Move(eax, dst)
+                                )
+                            }
                         }
 
                         "/", "%" -> TODO("unimplemented yet")
