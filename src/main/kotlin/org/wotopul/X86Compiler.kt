@@ -214,9 +214,17 @@ fun compile(program: List<StackOp>): String {
                         "<", "<=", ">", ">=", "==", "!=" -> {
                             val src = conf.pop()
                             val dst = conf.top()
+                            result += X86Instr.Binop("xor", eax, eax)
+                            if (dst is Operand.Register) {
+                                result += X86Instr.Binop("cmp", src, dst)
+                            } else {
+                                result += listOf(
+                                    X86Instr.Move(dst, edx),
+                                    X86Instr.Binop("cmp", src, edx),
+                                    X86Instr.Move(edx, dst)
+                                )
+                            }
                             result += listOf(
-                                X86Instr.Binop("xor", eax, eax),
-                                X86Instr.Binop("cmp", src, dst),
                                 X86Instr.SetCC(op.op, "%al"),
                                 X86Instr.Move(eax, dst)
                             )
