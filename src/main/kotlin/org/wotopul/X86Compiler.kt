@@ -117,8 +117,17 @@ fun compile(program: List<StackOp>): String {
                     result += X86Instr.Move(Operand.Literal(op.value), top)
                 }
 
-                is Load -> TODO("unimplemented yet")
-                is Store -> TODO("unimplemented yet")
+                is Load -> {
+                    conf.addLocal(op.name)
+                    val top = conf.push()
+                    result += X86Instr.Move(Operand.Variable(op.name), top)
+                }
+
+                is Store -> {
+                    conf.addLocal(op.name)
+                    val top = conf.pop()
+                    result += X86Instr.Move(top, Operand.Variable(op.name))
+                }
 
                 is Binop -> {
                     val opnd = conf.pop()
