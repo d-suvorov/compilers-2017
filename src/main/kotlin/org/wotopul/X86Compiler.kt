@@ -23,7 +23,7 @@ sealed class X86Instr {
             is Register -> registers[idx]
             is Literal -> "\$$value"
             is Variable -> name
-            is Stack -> "-${offset * wordSize}(%%ebp)"
+            is Stack -> "-${offset * wordSize}(%ebp)"
         }
     }
 
@@ -55,6 +55,7 @@ sealed class X86Instr {
 
 class X86Configuration(
     val locals: MutableSet<String> = mutableSetOf(),
+    var frameSize: Int = 0,
     val symbolStack: MutableList<Operand> = mutableListOf()) /* TODO only registers and stack */
 {
     fun addLocal(name: String) {
@@ -67,7 +68,11 @@ class X86Configuration(
         fun next(size: Int): Operand =
             when (size) {
                 in 0 .. eaxIdx - 1 -> Operand.Register(size)
-                else -> Operand.Stack(size - eaxIdx)
+                else -> {
+                    val stackOffset = size - eaxIdx
+                    frameSize = maxOf(frameSize, stackOffset + 1)
+                    Operand.Stack(stackOffset)
+                }
             }
 
         val top = next(symbolStack.size)
@@ -157,5 +162,21 @@ fun compile(program: List<StackOp>): String {
         .map { it.toString() }
         .fold("") {acc, instr -> "$acc\t$instr\n"}
 
-    return "${header()}${body()}${footer()}"
+    fun openStackFrame(): String =
+        if (conf.frameSize == 0) ""
+        else """
+            |	pushl	%ebp
+            |	movl	%esp,	%ebp
+            |	subl	$${wordSize * conf.frameSize},	%esp
+            |
+            """.trimMargin()
+
+    fun closeStackFrame(): String =
+        if (conf.frameSize == 0) ""
+        else """
+            |	leave
+            |
+            """.trimMargin()
+
+    return "${header()}${openStackFrame()}${body()}${closeStackFrame()}${footer()}"
 }
