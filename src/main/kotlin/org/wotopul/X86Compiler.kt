@@ -131,7 +131,30 @@ fun compile(program: List<StackOp>): String {
     }
 
     val (res, conf) = compileImpl(program)
-    return res
+
+    fun header(): String {
+        fun variables(): String =
+            conf.locals
+                .map { "\t.comm\t$it,\t$wordSize,\t$wordSize\n" }
+                .fold("") {acc, def -> "$acc\n$def"}
+
+        return """
+            |	.text
+            |${variables()}
+            |	.globl	main
+            |main:
+            |
+            """.trimMargin()
+    }
+
+    fun footer(): String = """
+        |	xorl	%eax,	%eax
+        |	ret
+        """.trimMargin()
+
+    fun body(): String = res
         .map { it.toString() }
-        .reduce {acc, instr -> "$acc\n$instr"}
+        .fold("") {acc, instr -> "$acc\t$instr\n"}
+
+    return "${header()}${body()}${footer()}"
 }
