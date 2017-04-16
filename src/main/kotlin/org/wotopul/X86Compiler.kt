@@ -39,6 +39,7 @@ sealed class X86Instr {
     class SetCC(val op: String, val dst: String) : X86Instr()
     object Ret : X86Instr()
     object Cltd : X86Instr()
+    class Binop16(val op: String, val opnd1: String, val opnd2: String) : X86Instr()
 
     override fun toString(): String = when (this) {
         is Binop -> {
@@ -49,11 +50,20 @@ sealed class X86Instr {
 
                 "and" -> "andl"
                 "or" -> "orl"
-                "xor" -> "xor"
+                "xor" -> "xorl"
 
                 "cmp" -> "cmp"
 
                 else -> throw AssertionError("unknown binop: $op")
+            }
+            "$instrName\t$opnd1,\t$opnd2"
+        }
+
+        is Binop16 -> {
+            val instrName = when (op) {
+                "and" -> "and"
+                "xor" -> "xor"
+                else -> throw AssertionError("unknown 16-bit binop: $op")
             }
             "$instrName\t$opnd1,\t$opnd2"
         }
@@ -190,7 +200,33 @@ fun compile(program: List<StackOp>): String {
                             )
                         }
 
-                        "&&" -> TODO("unimplemented yet")
+                        "&&" -> {
+                            val src = conf.pop()
+                            val dst = conf.top()
+                            result += X86Instr.Binop("xor", eax, eax)
+
+                            fun checkZero(opnd: Operand, res: String) {
+                                val opnd1: Operand.Register = if (opnd !is Operand.Register) {
+                                    result += X86Instr.Move(opnd, edx)
+                                    edx
+                                } else {
+                                    opnd
+                                }
+                                result += listOf(
+                                    X86Instr.Binop("and", opnd1, opnd1),
+                                    X86Instr.SetCC("!=", res)
+                                )
+                            }
+
+                            checkZero(dst, "%al")
+                            checkZero(src, "%ah")
+
+                            result += listOf(
+                                X86Instr.Binop16("and", "%ah", "%al"),
+                                X86Instr.Binop16("xor", "%ah", "%ah"),
+                                X86Instr.Move(eax, dst)
+                            )
+                        }
 
                         "||" -> {
                             val src = conf.pop()
