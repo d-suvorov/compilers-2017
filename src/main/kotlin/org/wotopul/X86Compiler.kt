@@ -58,7 +58,7 @@ sealed class X86Instr {
             "$instrName\t$opnd1,\t$opnd2"
         }
 
-        is Div -> "idiv\t$opnd"
+        is Div -> "idivl\t$opnd"
 
         is Move -> "movl\t$src,\t$dst"
 
@@ -172,9 +172,9 @@ fun compile(program: List<StackOp>): String {
                                 result += X86Instr.Binop(op.op, src, dst)
                             } else {
                                 result += listOf(
-                                    X86Instr.Move(dst, eax),
-                                    X86Instr.Binop(op.op, src, eax),
-                                    X86Instr.Move(eax, dst)
+                                    X86Instr.Move(dst, edx),
+                                    X86Instr.Binop(op.op, src, edx),
+                                    X86Instr.Move(edx, dst)
                                 )
                             }
                         }
@@ -192,7 +192,24 @@ fun compile(program: List<StackOp>): String {
 
                         "&&" -> TODO("unimplemented yet")
 
-                        "||" -> TODO("unimplemented yet")
+                        "||" -> {
+                            val src = conf.pop()
+                            val dst = conf.top()
+                            result += X86Instr.Binop("xor", eax, eax)
+                            if (dst is Operand.Register) {
+                                result += X86Instr.Binop("or", src, dst)
+                            } else {
+                                result += listOf(
+                                    X86Instr.Move(dst, edx),
+                                    X86Instr.Binop("or", src, edx),
+                                    X86Instr.Move(edx, dst)
+                                )
+                            }
+                            result += listOf(
+                                X86Instr.SetCC("!=", "%al"),
+                                X86Instr.Move(eax, dst)
+                            )
+                        }
 
                         "<", "<=", ">", ">=", "==", "!=" -> {
                             val src = conf.pop()
