@@ -10,7 +10,10 @@ val registers: List<String> = listOf(
 )
 
 val eaxIdx = registers.indexOf("%eax")
+val edxIdx = registers.indexOf("%edx")
+
 val eax = Operand.Register(eaxIdx)
+val edx = Operand.Register(edxIdx)
 
 sealed class X86Instr {
     sealed class Operand {
@@ -28,10 +31,11 @@ sealed class X86Instr {
     }
 
     class Binop(val op: String, val opnd1: Operand, val opnd2: Operand) : X86Instr()
-    class Move(val src: Operand, val dst: Operand): X86Instr()
-    class Call(val name: String): X86Instr()
-    class Push(val opnd: Operand): X86Instr()
-    class Pop(val opnd: Operand): X86Instr()
+    class Div(val opnd: Operand) : X86Instr()
+    class Move(val src: Operand, val dst: Operand) : X86Instr()
+    class Call(val name: String) : X86Instr()
+    class Push(val opnd: Operand) : X86Instr()
+    class Pop(val opnd: Operand) : X86Instr()
     class SetCC(val op: String, val dst: String) : X86Instr()
     object Ret : X86Instr()
     object Cltd : X86Instr()
@@ -42,7 +46,6 @@ sealed class X86Instr {
                 "+" -> "addl"
                 "-" -> "subl"
                 "*" -> "imull"
-                "/" -> "idiv"
 
                 "and" -> "andl"
                 "or" -> "orl"
@@ -54,6 +57,8 @@ sealed class X86Instr {
             }
             "$instrName\t$opnd1,\t$opnd2"
         }
+
+        is Div -> "idiv\t$opnd"
 
         is Move -> "movl\t$src,\t$dst"
 
@@ -161,7 +166,16 @@ fun compile(program: List<StackOp>): String {
                             }
                         }
 
-                        "/", "%" -> TODO("unimplemented yet")
+                        "/", "%" -> {
+                            val src = conf.pop()
+                            val dst = conf.top()
+                            result += listOf(
+                                X86Instr.Move(dst, eax),
+                                X86Instr.Cltd,
+                                X86Instr.Div(src),
+                                X86Instr.Move(if (op.op == "/") eax else edx, dst)
+                            )
+                        }
 
                         "&&" -> TODO("unimplemented yet")
 
