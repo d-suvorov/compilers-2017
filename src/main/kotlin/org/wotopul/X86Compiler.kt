@@ -65,7 +65,20 @@ sealed class X86Instr {
         is Push -> "pushl\t$opnd"
         is Pop -> "popl\t$opnd"
 
-        is SetCC -> "set$op\t$dst"
+        is SetCC -> {
+            val cc = when (op) {
+                "<" -> "l"
+                "<=" -> "le"
+                ">" -> "g"
+                ">=" -> "ge"
+
+                "==" -> "e"
+                "!=" -> "ne"
+
+                else -> throw AssertionError("unknown comparison operator: $op")
+            }
+            "set$cc\t$dst"
+        }
 
         is Call -> "call\t$name"
         is Ret -> "ret"
@@ -182,7 +195,14 @@ fun compile(program: List<StackOp>): String {
                         "||" -> TODO("unimplemented yet")
 
                         "<", "<=", ">", ">=", "==", "!=" -> {
-                            TODO("unimplemented yet")
+                            val src = conf.pop()
+                            val dst = conf.top()
+                            result += listOf(
+                                X86Instr.Binop("xor", eax, eax),
+                                X86Instr.Binop("cmp", src, dst),
+                                X86Instr.SetCC(op.op, "%al"),
+                                X86Instr.Move(eax, dst)
+                            )
                         }
                     }
                 }
