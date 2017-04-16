@@ -101,7 +101,8 @@ fun compile(program: List<StackOp>): String {
                     assert(top == Operand.Register(0))
                     result += listOf(
                         X86Instr.Push(top),
-                        X86Instr.Call("write")
+                        X86Instr.Call("write"),
+                        X86Instr.Pop(top)
                         // TODO push return value of `write` to a symbol stack?
                     )
                 }
