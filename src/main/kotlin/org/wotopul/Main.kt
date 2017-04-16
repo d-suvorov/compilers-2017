@@ -43,16 +43,23 @@ fun main(args: Array<String>) {
             }
         }
         "-o" -> {
-            val source = readFile(args[1])
+            val filename = args[1]
+            val name = filename.substring(0, filename.lastIndexOf("."))
+
+            val source = readFile(filename)
             val program = parseProgram(source)
             val stackProgram = compile(program.main)
             val asm = compile(stackProgram)
 
             // write generated asm to a file
-            val asmFilename = args[1].replaceAfterLast(".", "s") // TODO no extension
+            val asmFilename = "$name.s" // TODO no extension in original filename
             FileOutputStream(asmFilename).bufferedWriter().use { it.write(asm) }
 
             // invoke assembler (GCC)
+            val gccProc = Runtime.getRuntime().exec("gcc -m32 -o $name ./runtime/runtime.o $asmFilename")
+            if (gccProc.waitFor() != 0) {
+                print(gccProc.errorStream.reader().use { it.readText() })
+            }
         }
         else -> {
             println("Unknown option: " + args[0])
