@@ -56,7 +56,8 @@ fun main(args: Array<String>) {
             FileOutputStream(asmFilename).bufferedWriter().use { it.write(asm) }
 
             // invoke assembler (GCC)
-            val gccProc = Runtime.getRuntime().exec("gcc -m32 -o $name ./runtime/runtime.o $asmFilename")
+            val rcRuntime = System.getenv("RC_RUNTIME") ?: "./runtime"
+            val gccProc = Runtime.getRuntime().exec("gcc -m32 -o $name $rcRuntime/runtime.o $asmFilename")
             if (gccProc.waitFor() != 0) {
                 print(gccProc.errorStream.reader().use { it.readText() })
             }
