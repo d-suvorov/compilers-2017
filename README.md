@@ -1,4 +1,4 @@
-# Учебный компилятор
+# Учебный компилятор [![Build Status](https://travis-ci.org/wotopul/compilers-2017.svg?branch=master)](https://travis-ci.org/wotopul/compilers-2017)
 
 ## Задания:
 - [x] Выражения + ввод / вывод в режиме интерпретатора (`core/test001.expr` - `core/test008.expr`, `expressions/*.expr`, `deep-expressions/*.expr`).
