@@ -6,7 +6,7 @@
 - [x] Выражения + ввод / вывод в режиме компиляции (`core/test001.expr` - `core/test008.expr`, `expressions/*.expr`, `deep-expressions/*.expr`).
 - [x] If + циклы (`core/test009.expr` - `core/test022.expr`) в режиме интерпретатора.
 - [x] If + циклы (`core/test009.expr` - `core/test022.expr`) в режиме стековой машины.
-- [ ] If + циклы (`core/test009.expr` - `core/test022.expr`) в режиме компиляции.
+- [x] If + циклы (`core/test009.expr` - `core/test022.expr`) в режиме компиляции.
 - [x] Функции (`core/test023.expr` - `core/test026.expr`) в режиме интерпретатора.
 - [x] Функции (`core/test023.expr` - `core/test026.expr`) в режиме стековой машины.
 - [ ] Функции (`core/test023.expr` - `core/test026.expr`) в режиме компиляции.
