@@ -164,12 +164,20 @@ fun compile(program: List<StackOp>): String {
                 is Load -> {
                     conf.addLocal(op.name)
                     val top = conf.push()
-                    result += X86Instr.Move(Operand.Variable(op.name), top)
+                    if (top is Operand.Register) {
+                        result += X86Instr.Move(Operand.Variable(op.name), top)
+                    } else {
+                        result += listOf(
+                            X86Instr.Move(Operand.Variable(op.name), edx),
+                            X86Instr.Move(edx, top)
+                        )
+                    }
                 }
 
                 is Store -> {
                     conf.addLocal(op.name)
                     val top = conf.pop()
+                    assert(top == Operand.Register(0))
                     result += X86Instr.Move(top, Operand.Variable(op.name))
                 }
 
