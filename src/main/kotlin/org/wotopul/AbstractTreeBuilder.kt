@@ -54,7 +54,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         val op = ctx!!.op.text
         val lhs = visit(ctx.left) as Expr
         val rhs = visit(ctx.right) as Expr
-        return Binop(op, lhs, rhs)
+        return Binop(if (op == "!!") "||" else op, lhs, rhs)
     }
 
     override fun visitFunction(ctx: LanguageParser.FunctionContext?) =

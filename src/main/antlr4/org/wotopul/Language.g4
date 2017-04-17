@@ -41,7 +41,7 @@ expr
     | left=expr op=('<' | '<=' | '>' | '>=') right=expr # infix
     | left=expr op=('==' | '!=')             right=expr # infix
     | left=expr op='&&'                      right=expr # infix
-    | left=expr op='||'                      right=expr # infix
+    | left=expr op=('||' | '!!')             right=expr # infix
     | name=ID                                           # variable
     | value=NUM                                         # const
     | function_                                         # function

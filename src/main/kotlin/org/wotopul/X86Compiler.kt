@@ -40,6 +40,9 @@ sealed class X86Instr {
     object Ret : X86Instr()
     object Cltd : X86Instr()
     class Binop16(val op: String, val opnd1: String, val opnd2: String) : X86Instr()
+    class Label(val name: String) : X86Instr()
+    class Jmp(val label: String) : X86Instr()
+    class Jnz(val label: String) : X86Instr()
 
     override fun toString(): String = when (this) {
         is Binop -> {
@@ -52,9 +55,7 @@ sealed class X86Instr {
                 "or" -> "orl"
                 "xor" -> "xorl"
 
-                "cmp" -> "cmp"
-
-                else -> throw AssertionError("unknown binop: $op")
+                else -> op
             }
             "$instrName\t$opnd1,\t$opnd2"
         }
@@ -94,6 +95,12 @@ sealed class X86Instr {
         is Ret -> "ret"
 
         is Cltd -> "cltd"
+
+        is Label -> "$name:"
+
+        is Jmp -> "jmp\t$label"
+
+        is Jnz -> "jnz\t$label"
     }
 }
 
@@ -164,12 +171,20 @@ fun compile(program: List<StackOp>): String {
                 is Load -> {
                     conf.addLocal(op.name)
                     val top = conf.push()
-                    result += X86Instr.Move(Operand.Variable(op.name), top)
+                    if (top is Operand.Register) {
+                        result += X86Instr.Move(Operand.Variable(op.name), top)
+                    } else {
+                        result += listOf(
+                            X86Instr.Move(Operand.Variable(op.name), edx),
+                            X86Instr.Move(edx, top)
+                        )
+                    }
                 }
 
                 is Store -> {
                     conf.addLocal(op.name)
                     val top = conf.pop()
+                    assert(top == Operand.Register(0))
                     result += X86Instr.Move(top, Operand.Variable(op.name))
                 }
 
@@ -268,13 +283,26 @@ fun compile(program: List<StackOp>): String {
                     }
                 }
 
-                is Label -> TODO("unimplemented yet")
-                is Jump -> TODO("unimplemented yet")
-                is Jnz -> TODO("unimplemented yet")
+                is Label -> result += X86Instr.Label(op.name)
+
+                is Jump -> result += X86Instr.Jmp(op.label)
+
+                is Jnz -> {
+                    val top = conf.pop()
+                    assert(top == Operand.Register(0))
+                    result += listOf(
+                        X86Instr.Binop("test", top, top),
+                        X86Instr.Jnz(op.label)
+                    )
+                }
+
+                is Call -> TODO("unimplemented yet")
+                is Enter -> TODO("unimplemented yet")
+                is Return -> TODO("unimplemented yet")
             }
         }
 
-        program.forEach { compile(it) }
+        program.forEach(::compile)
         return Pair(result, conf)
     }
 
