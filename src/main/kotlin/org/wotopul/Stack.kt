@@ -6,71 +6,104 @@ import org.wotopul.Configuration.OutputItem.Prompt
 import org.wotopul.StackOp.*
 import java.util.*
 
+val mainLabel = "_main"
+
 sealed class StackOp {
     object Nop : StackOp()
+
     object Read : StackOp()
     object Write : StackOp()
+
+    object Pop : StackOp()
     class Push(val value: Int) : StackOp()
     class Load(val name: String) : StackOp()
     class Store(val name: String) : StackOp()
+
     class Binop(val op: String) : StackOp()
+
     class Label(val name: String) : StackOp()
     class Jump(val label: String) : StackOp()
     class Jnz(val label: String) : StackOp()
+
+    class Call(val name: String) : StackOp()
+    class Enter(val params: List<String>) : StackOp()
+    object Return : StackOp()
+}
+
+fun compile(program: Program): List<StackOp> {
+    fun compile(function: FunctionDefinition) =
+        listOf(
+            Label(function.name),
+            Enter(function.params)
+        ) + compile(function.body)
+
+    val result = mutableListOf<StackOp>()
+    for (function in program.functions) {
+        result += compile(function)
+    }
+    return result + Label(mainLabel) + compile(program.main)
 }
 
 fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Const -> listOf(Push(expr.value))
     is Expr.Variable -> listOf(Load(expr.name))
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
-    is Expr.FunctionExpr -> TODO("unimplemented yet")
+    is Expr.FunctionExpr -> compile(expr.function)
+}
+
+fun compile(function: FunctionCall): List<StackOp> {
+    val result = mutableListOf<StackOp>()
+    for (expr in function.args.reversed()) {
+        result += compile(expr)
+    }
+    return result + Call(function.name)
 }
 
 fun compile(statement: Statement): List<StackOp> {
     var labelCounter = 0
 
     fun nextLabel(): String {
-        val res = "label$labelCounter"
+        val res = "_label$labelCounter"
         labelCounter++
         return res
     }
 
-    fun compileImpl(statement: Statement): List<StackOp> = when (statement) {
+    fun compileImpl(stmt: Statement): List<StackOp> = when (stmt) {
         is Statement.Skip -> listOf(Nop)
-        is Statement.Sequence -> compileImpl(statement.first) + compileImpl(statement.rest)
+        is Statement.Sequence -> compileImpl(stmt.first) + compileImpl(stmt.rest)
 
-        is Statement.Assignment -> compile(statement.value) + Store(statement.variable)
-        is Statement.Read -> listOf(Read, Store(statement.variable))
-        is Statement.Write -> compile(statement.value) + Write
+        is Statement.Assignment -> compile(stmt.value) + Store(stmt.variable)
+        is Statement.Read -> listOf(Read, Store(stmt.variable))
+        is Statement.Write -> compile(stmt.value) + Write
 
         is Statement.If -> {
             val thenLabel = Label(nextLabel())
             val fiLabel = Label(nextLabel())
-            compile(statement.condition) + Jnz(thenLabel.name) +
-                compileImpl(statement.elseClause) + Jump(fiLabel.name) +
-                thenLabel + compileImpl(statement.thenClause) + fiLabel
+            compile(stmt.condition) + Jnz(thenLabel.name) +
+                compileImpl(stmt.elseClause) + Jump(fiLabel.name) +
+                thenLabel + compileImpl(stmt.thenClause) + fiLabel
         }
 
         is Statement.While -> {
             val condLabel = Label(nextLabel())
             val bodyLabel = Label(nextLabel())
             val odLabel = Label(nextLabel())
-            listOf(condLabel) + compile(statement.condition) +
+            listOf(condLabel) + compile(stmt.condition) +
                 Jnz(bodyLabel.name) + Jump(odLabel.name) +
-                bodyLabel + compileImpl(statement.body) +
+                bodyLabel + compileImpl(stmt.body) +
                 Jump(condLabel.name) + odLabel
         }
 
         is Statement.Repeat -> {
             val beginLabel = Label(nextLabel())
             val endLabel = Label(nextLabel())
-            listOf(beginLabel) + compileImpl(statement.body) + compile(statement.condition) +
+            listOf(beginLabel) + compileImpl(stmt.body) + compile(stmt.condition) +
                 Jnz(endLabel.name) + Jump(beginLabel.name) + endLabel
         }
 
-        is Statement.Return -> TODO("unimplemented yet")
+        is Statement.Return -> compile(stmt.value) + Return
 
-        is Statement.FunctionStatement -> TODO("unimplemented yet")
+        is Statement.FunctionStatement -> compile(stmt.function) + Pop
     }
 
     return compileImpl(statement)
@@ -79,9 +112,22 @@ fun compile(statement: Statement): List<StackOp> {
 class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
-    override var environment: Map<String, Int> = emptyMap(),
-    var stack: List<Int> = emptyList()
-) : Configuration(input, output, environment)
+    var stack: List<Int> = emptyList(),
+    val frames: MutableList<MutableMap<String, Int>> = mutableListOf(mutableMapOf())
+)
+    : Configuration(input, output, emptyMap())
+{
+    override val environment: MutableMap<String, Int>
+        get() = frames.last()
+
+    fun enter() {
+        frames += mutableMapOf()
+    }
+
+    fun ret() {
+        frames.removeAt(frames.lastIndex)
+    }
+}
 
 fun interpret(program: List<StackOp>, input: List<Int>): List<OutputItem> =
     interpret(program, StackConf(input)).output
@@ -130,6 +176,8 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
 
             is Write -> curr.output += Number(popOrThrow())
 
+            is Pop -> popOrThrow()
+
             is Push -> curr.stack += op.value
 
             is Load -> {
@@ -154,11 +202,32 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                 val labelIdx = labelIndex(op.label)
                 if (popOrThrow() != 0) next = labelIdx
             }
+
+            is Call -> {
+                curr.stack += ip
+                next = labelIndex(op.name)
+            }
+
+            is Enter -> {
+                val returnAddress = popOrThrow()
+                curr.enter()
+                for (param in op.params) {
+                    curr.environment += (param to popOrThrow())
+                }
+                curr.stack += returnAddress
+            }
+
+            is Return -> {
+                val returnValue = popOrThrow()
+                next = popOrThrow()
+                curr.stack += returnValue
+                curr.ret()
+            }
         }
         run(++next)
     }
 
-    run(0)
+    run(labelIndex(mainLabel))
 
     return curr
 }
