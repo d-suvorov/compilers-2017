@@ -6,18 +6,34 @@ import org.wotopul.X86Instr.Operand
 val wordSize = 4
 
 val registers: List<String> = listOf(
-    "%ebx", "%ecx", "%esi", "%edi", "%eax", "%edx"
+    "%ebx",
+    "%ecx",
+    "%esi",
+    "%edi",
+    "%eax",
+    "%edx",
+    "%esp",
+    "%ebp"
 )
 
 val eaxIdx = registers.indexOf("%eax")
 val edxIdx = registers.indexOf("%edx")
+val espIdx = registers.indexOf("%esp")
+val ebpIdx = registers.indexOf("%ebp")
 
 val eax = Operand.Register(eaxIdx)
 val edx = Operand.Register(edxIdx)
+val esp = Operand.Register(espIdx)
+val ebp = Operand.Register(ebpIdx)
 
 sealed class X86Instr {
     sealed class Operand {
-        class Register(val idx: Int) : Operand()
+        class Register(val idx: Int) : Operand() {
+            init {
+                if (idx !in registers.indices)
+                    throw AssertionError("bad register index: $idx")
+            }
+        }
         class Literal(val value: Int) : Operand()
         class Variable(val name: String) : Operand()
         class Stack(val offset: Int) : Operand()
@@ -50,61 +66,65 @@ sealed class X86Instr {
 
     object Cltd : X86Instr()
 
-    override fun toString(): String = when (this) {
-        is Binop -> {
-            val instrName = when (op) {
-                "+" -> "addl"
-                "-" -> "subl"
-                "*" -> "imull"
+    override fun toString(): String {
+        val str = when (this) {
+            is Binop -> {
+                val instrName = when (op) {
+                    "+" -> "addl"
+                    "-" -> "subl"
+                    "*" -> "imull"
 
-                "and" -> "andl"
-                "or" -> "orl"
-                "xor" -> "xorl"
+                    "and" -> "andl"
+                    "or" -> "orl"
+                    "xor" -> "xorl"
 
-                else -> op
+                    else -> op
+                }
+                "$instrName\t$opnd1,\t$opnd2"
             }
-            "$instrName\t$opnd1,\t$opnd2"
-        }
 
-        is Binop16 -> {
-            val instrName = when (op) {
-                "and" -> "and"
-                "xor" -> "xor"
-                else -> throw AssertionError("unknown 16-bit binop: $op")
+            is Binop16 -> {
+                val instrName = when (op) {
+                    "and" -> "and"
+                    "xor" -> "xor"
+                    else -> throw AssertionError("unknown 16-bit binop: $op")
+                }
+                "$instrName\t$opnd1,\t$opnd2"
             }
-            "$instrName\t$opnd1,\t$opnd2"
-        }
 
-        is Div -> "idivl\t$opnd"
+            is Div -> "idivl\t$opnd"
 
-        is Move -> "movl\t$src,\t$dst"
+            is Move -> "movl\t$src,\t$dst"
 
-        is Push -> "pushl\t$opnd"
-        is Pop -> "popl\t$opnd"
+            is Push -> "pushl\t$opnd"
+            is Pop -> "popl\t$opnd"
 
-        is Call -> "call\t$name"
-        is Ret -> "ret"
+            is Call -> "call\t$name"
+            is Ret -> "ret"
 
-        is Label -> "$name:"
-        is Jmp -> "jmp\t$label"
-        is Jnz -> "jnz\t$label"
+            is Label -> "$name:"
+            is Jmp -> "jmp\t$label"
+            is Jnz -> "jnz\t$label"
 
-        is SetCC -> {
-            val cc = when (op) {
-                "<" -> "l"
-                "<=" -> "le"
-                ">" -> "g"
-                ">=" -> "ge"
+            is SetCC -> {
+                val cc = when (op) {
+                    "<" -> "l"
+                    "<=" -> "le"
+                    ">" -> "g"
+                    ">=" -> "ge"
 
-                "==" -> "e"
-                "!=" -> "ne"
+                    "==" -> "e"
+                    "!=" -> "ne"
 
-                else -> throw AssertionError("unknown comparison operator: $op")
+                    else -> throw AssertionError("unknown comparison operator: $op")
+                }
+                "set$cc\t$dst"
             }
-            "set$cc\t$dst"
-        }
 
-        is Cltd -> "cltd"
+            is Cltd -> "cltd"
+        }
+        val indent = if (this is Label) "" else "\t"
+        return "$indent$str\n"
     }
 }
 
@@ -289,47 +309,36 @@ fun compile(program: List<StackOp>): String {
         return Pair(result, conf)
     }
 
-    val (res, conf) = compileImpl(program)
+    val (body, conf) = compileImpl(program)
 
     fun header(): String {
-        fun variables(): String =
-            conf.locals
-                .map { "\t.comm\t$it,\t$wordSize,\t$wordSize\n" }
-                .fold("") {acc, def -> "$acc\n$def"}
-
-        return """
-            |	.text
-            |${variables()}
-            |	.globl	main
-            |main:
-            |
-            """.trimMargin()
+        val sb = StringBuilder("\t.text\n")
+        conf.locals.forEach {
+            sb.append("\t.comm\t$it,\t$wordSize,\t$wordSize\n")
+        }
+        sb.append("\t.globl\tmain\n")
+            .append(X86Instr.Label("main"))
+        return sb.toString()
     }
 
-    fun footer(): String = """
-        |	xorl	%eax,	%eax
-        |	ret
-        """.trimMargin()
+    fun footer(): String =
+        "${X86Instr.Binop("xor", eax, eax)}" +
+        "${X86Instr.Ret}"
 
-    fun body(): String = res
-        .map { it.toString() }
-        .fold("") {acc, instr -> "$acc\t$instr\n"}
+    fun body(): String {
+        val sb = StringBuilder()
+        body.forEach { sb.append(it) }
+        return sb.toString()
+    }
 
     fun openStackFrame(): String =
         if (conf.frameSize == 0) ""
-        else """
-            |	pushl	%ebp
-            |	movl	%esp,	%ebp
-            |	subl	$${wordSize * conf.frameSize},	%esp
-            |
-            """.trimMargin()
+        else "${X86Instr.Push(ebp)}" +
+            "${X86Instr.Move(esp, ebp)}" +
+            "${X86Instr.Binop("sub", Operand.Literal(wordSize * conf.frameSize), esp)}"
 
     fun closeStackFrame(): String =
-        if (conf.frameSize == 0) ""
-        else """
-            |	leave
-            |
-            """.trimMargin()
+        if (conf.frameSize == 0) "" else "\tleave\n"
 
     return "${header()}${openStackFrame()}${body()}${closeStackFrame()}${footer()}"
 }
