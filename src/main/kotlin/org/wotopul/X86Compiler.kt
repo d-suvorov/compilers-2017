@@ -31,18 +31,24 @@ sealed class X86Instr {
     }
 
     class Binop(val op: String, val opnd1: Operand, val opnd2: Operand) : X86Instr()
+    class Binop16(val op: String, val opnd1: String, val opnd2: String) : X86Instr()
     class Div(val opnd: Operand) : X86Instr()
+
     class Move(val src: Operand, val dst: Operand) : X86Instr()
-    class Call(val name: String) : X86Instr()
+
     class Push(val opnd: Operand) : X86Instr()
     class Pop(val opnd: Operand) : X86Instr()
-    class SetCC(val op: String, val dst: String) : X86Instr()
+
+    class Call(val name: String) : X86Instr()
     object Ret : X86Instr()
-    object Cltd : X86Instr()
-    class Binop16(val op: String, val opnd1: String, val opnd2: String) : X86Instr()
+
     class Label(val name: String) : X86Instr()
     class Jmp(val label: String) : X86Instr()
     class Jnz(val label: String) : X86Instr()
+
+    class SetCC(val op: String, val dst: String) : X86Instr()
+
+    object Cltd : X86Instr()
 
     override fun toString(): String = when (this) {
         is Binop -> {
@@ -76,6 +82,13 @@ sealed class X86Instr {
         is Push -> "pushl\t$opnd"
         is Pop -> "popl\t$opnd"
 
+        is Call -> "call\t$name"
+        is Ret -> "ret"
+
+        is Label -> "$name:"
+        is Jmp -> "jmp\t$label"
+        is Jnz -> "jnz\t$label"
+
         is SetCC -> {
             val cc = when (op) {
                 "<" -> "l"
@@ -91,23 +104,14 @@ sealed class X86Instr {
             "set$cc\t$dst"
         }
 
-        is Call -> "call\t$name"
-        is Ret -> "ret"
-
         is Cltd -> "cltd"
-
-        is Label -> "$name:"
-
-        is Jmp -> "jmp\t$label"
-
-        is Jnz -> "jnz\t$label"
     }
 }
 
 class X86Configuration(
     val locals: MutableSet<String> = mutableSetOf(),
     var frameSize: Int = 0,
-    val symbolStack: MutableList<Operand> = mutableListOf()) /* TODO only registers and stack */
+    val symbolStack: MutableList<Operand> = mutableListOf())
 {
     fun addLocal(name: String) {
         locals += name
@@ -189,24 +193,25 @@ fun compile(program: List<StackOp>): String {
                 }
 
                 is Binop -> {
-                    when (op.op) {
-                        "+", "-", "*" -> {
-                            val src = conf.pop()
-                            val dst = conf.top()
-                            if (dst is Operand.Register) {
-                                result += X86Instr.Binop(op.op, src, dst)
-                            } else {
-                                result += listOf(
-                                    X86Instr.Move(dst, edx),
-                                    X86Instr.Binop(op.op, src, edx),
-                                    X86Instr.Move(edx, dst)
-                                )
-                            }
+                    val src = conf.pop()
+                    val dst = conf.top()
+
+                    fun compileBinary(op: String) {
+                        if (dst is Operand.Register) {
+                            result += X86Instr.Binop(op, src, dst)
+                        } else {
+                            result += listOf(
+                                X86Instr.Move(dst, edx),
+                                X86Instr.Binop(op, src, edx),
+                                X86Instr.Move(edx, dst)
+                            )
                         }
+                    }
+
+                    when (op.op) {
+                        "+", "-", "*" -> compileBinary(op.op)
 
                         "/", "%" -> {
-                            val src = conf.pop()
-                            val dst = conf.top()
                             result += listOf(
                                 X86Instr.Move(dst, eax),
                                 X86Instr.Cltd,
@@ -216,8 +221,6 @@ fun compile(program: List<StackOp>): String {
                         }
 
                         "&&" -> {
-                            val src = conf.pop()
-                            val dst = conf.top()
                             result += X86Instr.Binop("xor", eax, eax)
 
                             fun checkZero(opnd: Operand, res: String) {
@@ -244,18 +247,8 @@ fun compile(program: List<StackOp>): String {
                         }
 
                         "||" -> {
-                            val src = conf.pop()
-                            val dst = conf.top()
                             result += X86Instr.Binop("xor", eax, eax)
-                            if (dst is Operand.Register) {
-                                result += X86Instr.Binop("or", src, dst)
-                            } else {
-                                result += listOf(
-                                    X86Instr.Move(dst, edx),
-                                    X86Instr.Binop("or", src, edx),
-                                    X86Instr.Move(edx, dst)
-                                )
-                            }
+                            compileBinary("or")
                             result += listOf(
                                 X86Instr.SetCC("!=", "%al"),
                                 X86Instr.Move(eax, dst)
@@ -263,18 +256,8 @@ fun compile(program: List<StackOp>): String {
                         }
 
                         "<", "<=", ">", ">=", "==", "!=" -> {
-                            val src = conf.pop()
-                            val dst = conf.top()
                             result += X86Instr.Binop("xor", eax, eax)
-                            if (dst is Operand.Register) {
-                                result += X86Instr.Binop("cmp", src, dst)
-                            } else {
-                                result += listOf(
-                                    X86Instr.Move(dst, edx),
-                                    X86Instr.Binop("cmp", src, edx),
-                                    X86Instr.Move(edx, dst)
-                                )
-                            }
+                            compileBinary("cmp")
                             result += listOf(
                                 X86Instr.SetCC(op.op, "%al"),
                                 X86Instr.Move(eax, dst)
