@@ -1,7 +1,7 @@
 package org.wotopul
 
-import org.wotopul.StackOp.*
-import org.wotopul.X86Instr.Operand
+import org.wotopul.X86Instr.*
+import org.wotopul.X86Instr.Operand.Register
 
 val wordSize = 4
 
@@ -21,10 +21,10 @@ val edxIdx = registers.indexOf("%edx")
 val espIdx = registers.indexOf("%esp")
 val ebpIdx = registers.indexOf("%ebp")
 
-val eax = Operand.Register(eaxIdx)
-val edx = Operand.Register(edxIdx)
-val esp = Operand.Register(espIdx)
-val ebp = Operand.Register(ebpIdx)
+val eax = Register(eaxIdx)
+val edx = Register(edxIdx)
+val esp = Register(espIdx)
+val ebp = Register(ebpIdx)
 
 sealed class X86Instr {
     sealed class Operand {
@@ -142,7 +142,7 @@ class X86Configuration(
     fun push(): Operand {
         fun next(size: Int): Operand =
             when (size) {
-                in 0 .. eaxIdx - 1 -> Operand.Register(size)
+                in 0 .. eaxIdx - 1 -> Register(size)
                 else -> {
                     val stackOffset = size - eaxIdx
                     frameSize = maxOf(frameSize, stackOffset + 1)
@@ -165,65 +165,65 @@ fun compile(program: List<StackOp>): String {
 
         fun compile(op: StackOp) {
             when (op) {
-                is Nop -> { /* very optimizing compiler */ }
+                is StackOp.Nop -> { /* very optimizing compiler */ }
 
-                is Read -> {
+                is StackOp.Read -> {
                     val top = conf.push()
-                    assert(top == Operand.Register(0))
+                    assert(top == Register(0))
                     result += listOf(
-                        X86Instr.Call("read"),
-                        X86Instr.Move(eax, top)
+                        Call("read"),
+                        Move(eax, top)
                     )
                 }
 
-                is Write -> {
+                is StackOp.Write -> {
                     val top = conf.pop()
-                    assert(top == Operand.Register(0))
+                    assert(top == Register(0))
                     result += listOf(
-                        X86Instr.Push(top),
-                        X86Instr.Call("write"),
-                        X86Instr.Pop(top)
+                        Push(top),
+                        Call("write"),
+                        Pop(top)
                         // TODO push return value of `write` to a symbol stack?
                     )
                 }
 
-                is Push -> {
+                is StackOp.Push -> {
                     val top = conf.push()
-                    result += X86Instr.Move(Operand.Literal(op.value), top)
+                    result += Move(Operand.Literal(op.value), top)
                 }
 
-                is Load -> {
+                is StackOp.Load -> {
                     conf.addLocal(op.name)
                     val top = conf.push()
-                    if (top is Operand.Register) {
-                        result += X86Instr.Move(Operand.Variable(op.name), top)
+                    if (top is Register) {
+                        result += Move(Operand.Variable(op.name), top)
                     } else {
                         result += listOf(
-                            X86Instr.Move(Operand.Variable(op.name), edx),
-                            X86Instr.Move(edx, top)
+                            Move(Operand.Variable(op.name), edx),
+                            Move(edx, top)
                         )
                     }
                 }
 
-                is Store -> {
+                is StackOp.Store -> {
                     conf.addLocal(op.name)
                     val top = conf.pop()
-                    assert(top == Operand.Register(0))
-                    result += X86Instr.Move(top, Operand.Variable(op.name))
+                    assert(top == Register(0))
+                    result += Move(top, Operand.Variable(op.name))
                 }
 
-                is Binop -> {
+                is StackOp.Binop -> {
                     val src = conf.pop()
                     val dst = conf.top()
 
                     fun compileBinary(op: String) {
-                        if (dst is Operand.Register) {
-                            result += X86Instr.Binop(op, src, dst)
+                        if (dst is Register) {
+                            result += Binop(op, src, dst)
                         } else {
                             result += listOf(
-                                X86Instr.Move(dst, edx),
-                                X86Instr.Binop(op, src, edx),
-                                X86Instr.Move(edx, dst)
+                                Move(dst, edx),
+                                Binop(op, src, edx),
+                                Move(edx, dst)
                             )
                         }
                     }
@@ -233,26 +233,26 @@ fun compile(program: List<StackOp>): String {
 
                         "/", "%" -> {
                             result += listOf(
-                                X86Instr.Move(dst, eax),
-                                X86Instr.Cltd,
-                                X86Instr.Div(src),
-                                X86Instr.Move(if (op.op == "/") eax else edx, dst)
+                                Move(dst, eax),
+                                Cltd,
+                                Div(src),
+                                Move(if (op.op == "/") eax else edx, dst)
                             )
                         }
 
                         "&&" -> {
-                            result += X86Instr.Binop("xor", eax, eax)
+                            result += Binop("xor", eax, eax)
 
                             fun checkZero(opnd: Operand, res: String) {
-                                val opnd1: Operand.Register = if (opnd !is Operand.Register) {
-                                    result += X86Instr.Move(opnd, edx)
+                                val opnd1: Register = if (opnd !is Register) {
+                                    result += Move(opnd, edx)
                                     edx
                                 } else {
                                     opnd
                                 }
                                 result += listOf(
-                                    X86Instr.Binop("and", opnd1, opnd1),
-                                    X86Instr.SetCC("!=", res)
+                                    Binop("and", opnd1, opnd1),
+                                    SetCC("!=", res)
                                 )
                             }
 
@@ -260,48 +260,48 @@ fun compile(program: List<StackOp>): String {
                             checkZero(src, "%ah")
 
                             result += listOf(
-                                X86Instr.Binop16("and", "%ah", "%al"),
-                                X86Instr.Binop16("xor", "%ah", "%ah"),
-                                X86Instr.Move(eax, dst)
+                                Binop16("and", "%ah", "%al"),
+                                Binop16("xor", "%ah", "%ah"),
+                                Move(eax, dst)
                             )
                         }
 
                         "||" -> {
-                            result += X86Instr.Binop("xor", eax, eax)
+                            result += Binop("xor", eax, eax)
                             compileBinary("or")
                             result += listOf(
-                                X86Instr.SetCC("!=", "%al"),
-                                X86Instr.Move(eax, dst)
+                                SetCC("!=", "%al"),
+                                Move(eax, dst)
                             )
                         }
 
                         "<", "<=", ">", ">=", "==", "!=" -> {
-                            result += X86Instr.Binop("xor", eax, eax)
+                            result += Binop("xor", eax, eax)
                             compileBinary("cmp")
                             result += listOf(
-                                X86Instr.SetCC(op.op, "%al"),
-                                X86Instr.Move(eax, dst)
+                                SetCC(op.op, "%al"),
+                                Move(eax, dst)
                             )
                         }
                     }
                 }
 
-                is Label -> result += X86Instr.Label(op.name)
+                is StackOp.Label -> result += Label(op.name)
 
-                is Jump -> result += X86Instr.Jmp(op.label)
+                is StackOp.Jump -> result += Jmp(op.label)
 
-                is Jnz -> {
+                is StackOp.Jnz -> {
                     val top = conf.pop()
-                    assert(top == Operand.Register(0))
+                    assert(top == Register(0))
                     result += listOf(
-                        X86Instr.Binop("test", top, top),
-                        X86Instr.Jnz(op.label)
+                        Binop("test", top, top),
+                        Jnz(op.label)
                     )
                 }
 
-                is Call -> TODO("unimplemented yet")
-                is Enter -> TODO("unimplemented yet")
-                is Return -> TODO("unimplemented yet")
+                is StackOp.Call -> TODO("unimplemented yet")
+                is StackOp.Enter -> TODO("unimplemented yet")
+                is StackOp.Return -> TODO("unimplemented yet")
             }
         }
 
@@ -317,13 +317,13 @@ fun compile(program: List<StackOp>): String {
             sb.append("\t.comm\t$it,\t$wordSize,\t$wordSize\n")
         }
         sb.append("\t.globl\tmain\n")
-            .append(X86Instr.Label("main"))
+            .append(Label("main"))
         return sb.toString()
     }
 
     fun footer(): String =
-        "${X86Instr.Binop("xor", eax, eax)}" +
-        "${X86Instr.Ret}"
+        "${Binop("xor", eax, eax)}" +
+        "${Ret}"
 
     fun body(): String {
         val sb = StringBuilder()
@@ -333,9 +333,9 @@ fun compile(program: List<StackOp>): String {
 
     fun openStackFrame(): String =
         if (conf.frameSize == 0) ""
-        else "${X86Instr.Push(ebp)}" +
-            "${X86Instr.Move(esp, ebp)}" +
-            "${X86Instr.Binop("sub", Operand.Literal(wordSize * conf.frameSize), esp)}"
+        else "${Push(ebp)}" +
+            "${Move(esp, ebp)}" +
+            "${Binop("sub", Operand.Literal(wordSize * conf.frameSize), esp)}"
 
     fun closeStackFrame(): String =
         if (conf.frameSize == 0) "" else "\tleave\n"
