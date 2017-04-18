@@ -5,6 +5,11 @@ os: linux
 jdk:
   - oraclejdk8
 
+apt:
+  addon:
+    packages:
+      - gcc-multilib
+
 install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 
