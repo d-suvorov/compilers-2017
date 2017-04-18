@@ -1,1 +1,16 @@
 language: java
+
+os: linux
+
+jdk:
+  - oraclejdk8
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y gcc-multilib
+
+install:
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+
+script:
+  - make test
