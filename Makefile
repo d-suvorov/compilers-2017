@@ -1,15 +1,24 @@
+RUNTIME_DIR = runtime
+TESTS_DIR = compiler-tests
+
 .PHONY: all clean runtime
 
 .DEFAULT_GOAL: all
 
-all: main runtime
+all: runtime build
 
 runtime:
-	make -C runtime/
+	$(MAKE) -C $(RUNTIME_DIR)
 
-main:
+build:
 	mvn package
+
+test: all
+	$(MAKE) -C $(TESTS_DIR)/deep-expressions
 
 clean:
 	mvn clean
-	make -C runtime/ clean
+	$(MAKE) -C $(RUNTIME_DIR) clean
+
+test-clean:
+	$(MAKE) -C $(TESTS_DIR)/deep-expressions clean
