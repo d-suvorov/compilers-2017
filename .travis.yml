@@ -5,10 +5,9 @@ os: linux
 jdk:
   - oraclejdk8
 
-apt:
-  addon:
-    packages:
-      - gcc-multilib
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y gcc-multilib
 
 install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
