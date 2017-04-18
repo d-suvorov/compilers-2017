@@ -1,1 +1,12 @@
 language: java
+
+os: linux
+
+jdk:
+  - openjdk8
+
+install:
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+
+script:
+  - make
