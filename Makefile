@@ -14,7 +14,7 @@ build:
 	mvn package
 
 test: all
-	$(MAKE) -C $(TESTS_DIR)/deep-expressions
+	$(MAKE) -C $(TESTS_DIR)/deep-expressions -j4 -s
 
 clean:
 	mvn clean
