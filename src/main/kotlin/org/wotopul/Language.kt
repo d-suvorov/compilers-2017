@@ -10,7 +10,8 @@ class Program(
 class FunctionDefinition(
     val name: String,
     val params: List<String>,
-    val body: Statement
+    val body: Statement,
+    val locals: Set<String>
 ) : AbstractNode()
 
 class FunctionCall(val name: String, val args: List<Expr>)
