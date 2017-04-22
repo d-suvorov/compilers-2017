@@ -1,7 +1,6 @@
 package org.wotopul
 
 import org.wotopul.Expr.*
-import org.wotopul.Expr.FunctionExpr
 
 fun functionByOperation(op: String): (Int, Int) -> Int = when (op) {
     "*" -> { x, y -> x * y }
@@ -44,4 +43,9 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Int> = when (expr
     }
 
     is FunctionExpr -> evalFunction(expr.function, conf)
+
+    is CharLiteral -> throw ExecutionException(
+        "erroneous use of character literal in an arithmetic expression")
+    is StringLiteral -> throw ExecutionException(
+        "erroneous use of string literal in an arithmetic expression")
 }

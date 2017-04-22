@@ -35,6 +35,10 @@ sealed class Statement : AbstractNode() {
 sealed class Expr : AbstractNode() {
     class Const(val value: Int) : Expr()
     class Variable(val name: String) : Expr()
-    class FunctionExpr(val function: FunctionCall) : Expr()
     class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
+
+    class CharLiteral(val value: Char) : Expr()
+    class StringLiteral(val value: String) : Expr()
+
+    class FunctionExpr(val function: FunctionCall) : Expr()
 }

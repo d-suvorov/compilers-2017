@@ -57,6 +57,17 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return Binop(if (op == "!!") "||" else op, lhs, rhs)
     }
 
+    override fun visitCharLiteral(ctx: LanguageParser.CharLiteralContext?): CharLiteral {
+        val chStr = ctx!!.CHAR().text
+        assert(chStr.length == 1)
+        return CharLiteral(chStr.first())
+    }
+
+    override fun visitStringLiteral(ctx: LanguageParser.StringLiteralContext?): StringLiteral {
+        val str = ctx!!.CHAR().fold("") { acc, it -> acc + it }
+        return StringLiteral(str)
+    }
+
     override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
         FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 

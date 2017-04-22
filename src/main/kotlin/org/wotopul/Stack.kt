@@ -49,6 +49,9 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Variable -> listOf(Load(expr.name))
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
     is Expr.FunctionExpr -> compile(expr.function)
+
+    is Expr.CharLiteral -> TODO()
+    is Expr.StringLiteral -> TODO()
 }
 
 fun compile(function: FunctionCall): List<StackOp> {

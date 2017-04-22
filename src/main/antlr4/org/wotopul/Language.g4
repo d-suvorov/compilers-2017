@@ -45,6 +45,8 @@ expr
     | name=ID                                           # variable
     | value=NUM                                         # const
     | function_                                         # function
+    | '\'' CHAR '\''                                    # charLiteral
+    | '"' CHAR* '"'                                     # stringLiteral
     ;
 
 function_
@@ -74,6 +76,9 @@ FUN     : 'fun';
 BEGIN   : 'begin';
 END     : 'end';
 RETURN  : 'return';
+
+fragment
+CHAR: ~['\\\r\n];
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;
