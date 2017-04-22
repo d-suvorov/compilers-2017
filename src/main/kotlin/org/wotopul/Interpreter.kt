@@ -1,7 +1,42 @@
 package org.wotopul
 
 import org.wotopul.Configuration.OutputItem
+import org.wotopul.Primitive.IntT
 import org.wotopul.Statement.*
+
+sealed class Primitive {
+    class IntT(val value: Int) : Primitive()
+    class CharT(val value: Char) : Primitive()
+    class StringT(val value: String) : Primitive()
+
+    fun type(): String = when (this) {
+        is IntT -> "int"
+        is CharT -> "char"
+        is StringT -> "string"
+    }
+
+    fun toInt(): Int = when (this) {
+        is IntT -> value
+        is CharT -> value.toInt()
+        is StringT -> throw ExecutionException(
+            "conversions of ${type()} to int are not allowed")
+    }
+
+    fun toBoolean(): Boolean = when (this) {
+        is IntT -> value.toBoolean()
+        else -> throw ExecutionException(
+            "conversions of ${type()} to boolean are not allowed")
+    }
+
+    companion object {
+        fun of(value: Any) : Primitive = when (value) {
+            is Int -> IntT(value)
+            is Char -> CharT(value)
+            is String -> StringT(value)
+            else -> throw AssertionError()
+        }
+    }
+}
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
     eval(program.main, Configuration(input, program)).output
@@ -9,7 +44,7 @@ fun interpret(program: Program, input: List<Int>): List<OutputItem> =
 open class Configuration(
     open val input: List<Int>,
     open val output: List<OutputItem> = emptyList(),
-    open val environment: Map<String, Int> = emptyMap(),
+    open val environment: Map<String, Primitive> = emptyMap(),
     val functions: Map<String, FunctionDefinition> = emptyMap())
 {
     sealed class OutputItem {
@@ -35,7 +70,7 @@ open class Configuration(
     constructor(input: List<Int>, program: Program)
         : this(input, functions = program.functions.associateBy({ it.name }))
 
-    fun updateEnvironment(newEnv: Map<String, Int>) =
+    fun updateEnvironment(newEnv: Map<String, Primitive>) =
         Configuration(this.input, this.output, newEnv, this.functions)
 
     fun returned() = returnValueVarName in environment
@@ -43,7 +78,7 @@ open class Configuration(
     fun returnValue() = environment[returnValueVarName]
         ?: throw ExecutionException("return statement expected")
 
-    fun updateReturnValue(value: Int) =
+    fun updateReturnValue(value: Primitive) =
         updateEnvironment(environment + (returnValueVarName to value))
 
     companion object { val returnValueVarName = "return" }
@@ -67,13 +102,13 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
             val inputHead = start.input.first()
             val inputTail = start.input.subList(1, start.input.size)
             val name = stmt.variable
-            val updated = start.environment + (name to inputHead)
+            val updated = start.environment + (name to IntT(inputHead))
             Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
         }
 
         is Write -> {
             val (afterExpr, value) = eval(stmt.value, start)
-            val updatedOutput = afterExpr.output + OutputItem.Number(value)
+            val updatedOutput = afterExpr.output + OutputItem.Number(value.toInt())
             Configuration(afterExpr.input, updatedOutput,
                 afterExpr.environment, afterExpr.functions)
         }
@@ -109,7 +144,7 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
     eval(second, eval(first, start))
 
-fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Int> {
+fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
     val definition = conf.functions[function.name]
         ?: throw ExecutionException("undefined function: ${function.name}")
     if (definition.params.size != function.args.size) {
@@ -117,7 +152,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
             " to ${function.args.size} arguments")
     }
     var curr: Configuration = conf
-    val argsEnv = HashMap<String, Int>()
+    val argsEnv = HashMap<String, Primitive>()
     for (i in function.args.indices) {
         val paramName = definition.params[i]
         val (next, paramValue) = eval(function.args[i], curr)

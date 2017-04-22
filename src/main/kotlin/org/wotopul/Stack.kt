@@ -3,6 +3,7 @@ package org.wotopul
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
+import org.wotopul.Primitive.IntT
 import org.wotopul.StackOp.*
 import java.util.*
 
@@ -116,11 +117,11 @@ class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
     var stack: List<Int> = emptyList(),
-    val frames: MutableList<MutableMap<String, Int>> = mutableListOf(mutableMapOf())
+    val frames: MutableList<MutableMap<String, Primitive>> = mutableListOf(mutableMapOf())
 )
     : Configuration(input, output, emptyMap())
 {
-    override val environment: MutableMap<String, Int>
+    override val environment: MutableMap<String, Primitive>
         get() = frames.last()
 
     fun enter() {
@@ -186,15 +187,15 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             is Load -> {
                 val value = curr.environment[op.name]
                     ?: throw ExecutionException("undefined variable: ${op.name}")
-                curr.stack += value
+                curr.stack += value.toInt()
             }
 
-            is Store -> curr.environment += (op.name to popOrThrow())
+            is Store -> curr.environment += (op.name to IntT(popOrThrow()))
 
             is Binop -> {
                 val rhs = popOrThrow()
                 val lhs = popOrThrow()
-                curr.stack += functionByOperation(op.op) (lhs, rhs)
+                curr.stack += intBinopByString(op.op) (lhs, rhs)
             }
 
             is Label -> {}
@@ -215,7 +216,7 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                 val returnAddress = popOrThrow()
                 curr.enter()
                 for (param in op.params) {
-                    curr.environment += (param to popOrThrow())
+                    curr.environment += (param to IntT(popOrThrow()))
                 }
                 curr.stack += returnAddress
             }
