@@ -47,6 +47,7 @@ expr
     | function_                                         # function
     | CharLiteral                                       # charLiteral
     | StringLiteral                                     # stringLiteral
+    | BooleanLiteral                                    # booleanLiteral
     ;
 
 function_
@@ -97,6 +98,11 @@ StringCharacters
 
 fragment
 StringCharacter: ~["\\\r\n];
+
+BooleanLiteral
+    : 'true'
+    | 'false'
+    ;
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;

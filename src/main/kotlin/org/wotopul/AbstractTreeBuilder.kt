@@ -68,6 +68,13 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return StringLiteral(str)
     }
 
+    override fun visitBooleanLiteral(ctx: LanguageParser.BooleanLiteralContext?): AbstractNode =
+        when (ctx!!.text) {
+            "false" -> Const(0)
+            "true" -> Const(1)
+            else -> throw AssertionError("unknown boolean value: ${ctx.text}")
+        }
+
     override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
         FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 
