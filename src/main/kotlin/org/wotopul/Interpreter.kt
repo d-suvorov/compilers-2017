@@ -2,6 +2,7 @@ package org.wotopul
 
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Primitive.IntT
+import org.wotopul.Primitive.StringT
 import org.wotopul.Statement.*
 
 sealed class Primitive {
@@ -145,22 +146,38 @@ fun evalSequentially(first: Statement, second: Statement, start: Configuration) 
     eval(second, eval(first, start))
 
 fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
+    if (function.name == "strlen")
+        return strlen(function, conf)
     val definition = conf.functions[function.name]
         ?: throw ExecutionException("undefined function: ${function.name}")
-    if (definition.params.size != function.args.size) {
-        throw ExecutionException("cannot apply function ${function.name}" +
-            " to ${function.args.size} arguments")
-    }
+    checkArgsSize(definition.params.size, function)
+
     var curr: Configuration = conf
     val argsEnv = HashMap<String, Primitive>()
     for (i in function.args.indices) {
         val paramName = definition.params[i]
-        val (next, paramValue) = eval(function.args[i], curr)
-        argsEnv.put(paramName, paramValue)
+        val (next, arg) = eval(function.args[i], curr)
+        argsEnv.put(paramName, arg)
         curr = next
     }
+
     val local = curr.updateEnvironment(argsEnv)
     val after = eval(definition.body, local)
     val returnValue = after.returnValue()
     return Pair(after.updateEnvironment(conf.environment), returnValue)
+}
+
+private fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
+    checkArgsSize(1, function)
+    val (after, arg) = eval(function.args.first(), conf)
+    if (arg !is StringT)
+        throw ExecutionException("strlen can only be applied to a string")
+    return Pair(after, IntT(arg.value.length))
+}
+
+fun checkArgsSize(paramsSize: Int, function: FunctionCall) {
+    if (paramsSize != function.args.size) {
+        throw ExecutionException("cannot apply function ${function.name}" +
+            " to ${function.args.size} arguments")
+    }
 }
