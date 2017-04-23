@@ -153,6 +153,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "strdup" -> strdup(function, conf)
         "strcat" -> strcat(function, conf)
         "strcmp" -> strcmp(function, conf)
+        "strmake" -> strmake(function, conf)
 
         else -> {
             val definition = conf.functions[function.name]
@@ -251,6 +252,18 @@ fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
     }
     val res = String(str1.value).compareTo(String(str2.value))
     return Pair(after2, IntT(res))
+}
+
+fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
+    checkArgsSize(2, function)
+    val (after1, length) = eval(function.args[0], conf)
+    val (after2, chr) = eval(function.args[1], after1)
+    if (length !is IntT || chr !is CharT) {
+        throw ExecutionException(
+            "strmake can not be applied to ${length.type()} and ${chr.type()}")
+    }
+    val str = CharArray(length.value) { chr.value }
+    return Pair(after2, StringT(str))
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {
