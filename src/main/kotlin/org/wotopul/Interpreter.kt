@@ -149,6 +149,9 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "strlen" -> strlen(function, conf)
         "strget" -> strget(function, conf)
         "strset" -> strset(function, conf)
+        "strdup" -> strdup(function, conf)
+        "strcat" -> strcat(function, conf)
+        "strcmp" -> strcmp(function, conf)
 
         else -> {
             val definition = conf.functions[function.name]
@@ -179,7 +182,7 @@ fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
     return Pair(after, IntT(arg.value.size))
 }
 
-fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
+fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, CharT> {
     checkArgsSize(2, function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
@@ -190,7 +193,7 @@ fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, Pri
     return Pair(after2, CharT(str.value[idx.value]))
 }
 
-fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
+fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(3, function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
@@ -201,6 +204,38 @@ fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Pri
     }
     str.value[idx.value] = chr.value
     return Pair(after3, IntT(0))
+}
+
+fun strdup(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
+    checkArgsSize(1, function)
+    val (after, str) = eval(function.args[0], conf)
+    if (str !is StringT) {
+        throw ExecutionException("strlen can not be applied to ${str.type()}")
+    }
+    return Pair(after, StringT(str.value.copyOf()))
+}
+
+fun strcat(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
+    checkArgsSize(2, function)
+    val (after1, str1) = eval(function.args[0], conf)
+    val (after2, str2) = eval(function.args[0], after1)
+    if (str1 !is StringT || str2 !is StringT) {
+        throw ExecutionException(
+            "strlen can not be applied to ${str1.type()} and ${str2.type()}")
+    }
+    return Pair(after2, StringT((str1.toString() + str2.toString()).toCharArray()))
+}
+
+fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
+    checkArgsSize(2, function)
+    val (after1, str1) = eval(function.args[0], conf)
+    val (after2, str2) = eval(function.args[0], after1)
+    if (str1 !is StringT || str2 !is StringT) {
+        throw ExecutionException(
+            "strlen can not be applied to ${str1.type()} and ${str2.type()}")
+    }
+
+    return Pair(after2, IntT(str1.toString().compareTo(str2.toString())))
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {
