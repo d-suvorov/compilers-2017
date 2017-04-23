@@ -58,7 +58,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     }
 
     override fun visitCharLiteral(ctx: LanguageParser.CharLiteralContext?): CharLiteral {
-        val chStr = ctx!!.CharLiteral().getChild(1).text
+        val chStr = ctx!!.text.trim('\'')
         assert(chStr.length == 1)
         return CharLiteral(chStr.first())
     }
