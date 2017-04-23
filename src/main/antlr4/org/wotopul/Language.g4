@@ -45,8 +45,8 @@ expr
     | name=ID                                           # variable
     | value=NUM                                         # const
     | function_                                         # function
-    | '\'' CHAR '\''                                    # charLiteral
-    | '"' CHAR* '"'                                     # stringLiteral
+    | CharLiteral                                       # charLiteral
+    | StringLiteral                                     # stringLiteral
     ;
 
 function_
@@ -57,6 +57,8 @@ args
     : expr (',' expr)*
     |
     ;
+
+// Lexer
 
 ST_SKIP : 'skip';
 READ    : 'read';
@@ -77,8 +79,24 @@ BEGIN   : 'begin';
 END     : 'end';
 RETURN  : 'return';
 
+CharLiteral
+    : '\'' Character '\''
+    ;
+
 fragment
-CHAR: ~['\\\r\n];
+Character : ~['\\\r\n];
+
+StringLiteral
+    :   '"' StringCharacters? '"'
+    ;
+
+fragment
+StringCharacters
+    :   StringCharacter+
+    ;
+
+fragment
+StringCharacter: ~["\\\r\n];
 
 NUM : [0-9]+;
 ID  : [a-zA-Z][_a-zA-Z0-9]*;
