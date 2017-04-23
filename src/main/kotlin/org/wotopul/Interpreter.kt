@@ -1,14 +1,13 @@
 package org.wotopul
 
 import org.wotopul.Configuration.OutputItem
-import org.wotopul.Primitive.IntT
-import org.wotopul.Primitive.StringT
+import org.wotopul.Primitive.*
 import org.wotopul.Statement.*
 
 sealed class Primitive {
     class IntT(val value: Int) : Primitive()
     class CharT(val value: Char) : Primitive()
-    class StringT(val value: String) : Primitive()
+    class StringT(val value: CharArray) : Primitive()
 
     fun type(): String = when (this) {
         is IntT -> "int"
@@ -33,7 +32,7 @@ sealed class Primitive {
         fun of(value: Any) : Primitive = when (value) {
             is Int -> IntT(value)
             is Char -> CharT(value)
-            is String -> StringT(value)
+            is String -> StringT(value.toCharArray())
             else -> throw AssertionError()
         }
     }
@@ -145,34 +144,63 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
     eval(second, eval(first, start))
 
-fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
-    if (function.name == "strlen")
-        return strlen(function, conf)
-    val definition = conf.functions[function.name]
-        ?: throw ExecutionException("undefined function: ${function.name}")
-    checkArgsSize(definition.params.size, function)
+fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> =
+    when(function.name) {
+        "strlen" -> strlen(function, conf)
+        "strget" -> strget(function, conf)
+        "strset" -> strset(function, conf)
 
-    var curr: Configuration = conf
-    val argsEnv = HashMap<String, Primitive>()
-    for (i in function.args.indices) {
-        val paramName = definition.params[i]
-        val (next, arg) = eval(function.args[i], curr)
-        argsEnv.put(paramName, arg)
-        curr = next
+        else -> {
+            val definition = conf.functions[function.name]
+                ?: throw ExecutionException("undefined function: ${function.name}")
+            checkArgsSize(definition.params.size, function)
+
+            var curr: Configuration = conf
+            val argsEnv = HashMap<String, Primitive>()
+            for (i in function.args.indices) {
+                val paramName = definition.params[i]
+                val (next, arg) = eval(function.args[i], curr)
+                argsEnv.put(paramName, arg)
+                curr = next
+            }
+
+            val local = curr.updateEnvironment(argsEnv)
+            val after = eval(definition.body, local)
+            val returnValue = after.returnValue()
+            Pair(after.updateEnvironment(conf.environment), returnValue)
+        }
     }
 
-    val local = curr.updateEnvironment(argsEnv)
-    val after = eval(definition.body, local)
-    val returnValue = after.returnValue()
-    return Pair(after.updateEnvironment(conf.environment), returnValue)
-}
-
-private fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
+fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(1, function)
     val (after, arg) = eval(function.args.first(), conf)
     if (arg !is StringT)
-        throw ExecutionException("strlen can only be applied to a string")
-    return Pair(after, IntT(arg.value.length))
+        throw ExecutionException("strlen can not be applied to ${arg.type()}")
+    return Pair(after, IntT(arg.value.size))
+}
+
+fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
+    checkArgsSize(2, function)
+    val (after1, str) = eval(function.args[0], conf)
+    val (after2, idx) = eval(function.args[1], after1)
+    if (str !is StringT || idx !is IntT) {
+        throw ExecutionException(
+            "strlen can not be applied to ${str.type()} and ${idx.type()}")
+    }
+    return Pair(after2, CharT(str.value[idx.value]))
+}
+
+fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> {
+    checkArgsSize(3, function)
+    val (after1, str) = eval(function.args[0], conf)
+    val (after2, idx) = eval(function.args[1], after1)
+    val (after3, chr) = eval(function.args[1], after2)
+    if (str !is StringT || idx !is IntT || chr !is CharT) {
+        throw ExecutionException(
+            "strlen can not be applied to ${str.type()} and ${idx.type()} and ${chr.type()}")
+    }
+    str.value[idx.value] = chr.value
+    return Pair(after3, IntT(0))
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {

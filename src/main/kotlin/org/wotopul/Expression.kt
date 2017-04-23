@@ -21,7 +21,7 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Primitive> = when
     is FunctionExpr -> evalFunction(expr.function, conf)
 
     is CharLiteral -> Pair(conf, CharT(expr.value))
-    is StringLiteral -> Pair(conf, StringT(expr.value))
+    is StringLiteral -> Pair(conf, StringT(expr.value.toCharArray()))
 }
 
 fun evalBinary(op: String, left: Primitive, right: Primitive): Primitive {
