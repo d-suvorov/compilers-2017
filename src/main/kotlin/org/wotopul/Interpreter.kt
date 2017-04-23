@@ -149,6 +149,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "strlen" -> strlen(function, conf)
         "strget" -> strget(function, conf)
         "strset" -> strset(function, conf)
+        "strsub" -> strsub(function, conf)
         "strdup" -> strdup(function, conf)
         "strcat" -> strcat(function, conf)
         "strcmp" -> strcmp(function, conf)
@@ -188,7 +189,7 @@ fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, Cha
     val (after2, idx) = eval(function.args[1], after1)
     if (str !is StringT || idx !is IntT) {
         throw ExecutionException(
-            "strlen can not be applied to ${str.type()} and ${idx.type()}")
+            "strget can not be applied to ${str.type()} and ${idx.type()}")
     }
     return Pair(after2, CharT(str.value[idx.value]))
 }
@@ -197,20 +198,33 @@ fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
     checkArgsSize(3, function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
-    val (after3, chr) = eval(function.args[1], after2)
+    val (after3, chr) = eval(function.args[2], after2)
     if (str !is StringT || idx !is IntT || chr !is CharT) {
         throw ExecutionException(
-            "strlen can not be applied to ${str.type()} and ${idx.type()} and ${chr.type()}")
+            "strset can not be applied to ${str.type()} and ${idx.type()} and ${chr.type()}")
     }
     str.value[idx.value] = chr.value
     return Pair(after3, IntT(0))
+}
+
+fun strsub(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
+    checkArgsSize(3, function)
+    val (after1, str) = eval(function.args[0], conf)
+    val (after2, offset) = eval(function.args[1], after1)
+    val (after3, length) = eval(function.args[2], after2)
+    if (str !is StringT || offset !is IntT || length !is IntT) {
+        throw ExecutionException(
+            "strsub can not be applied to ${str.type()} and ${offset.type()} and ${length.type()}")
+    }
+    val substring = String(str.value, offset.value, length.value)
+    return Pair(after3, StringT(substring.toCharArray()))
 }
 
 fun strdup(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
     checkArgsSize(1, function)
     val (after, str) = eval(function.args[0], conf)
     if (str !is StringT) {
-        throw ExecutionException("strlen can not be applied to ${str.type()}")
+        throw ExecutionException("strdup can not be applied to ${str.type()}")
     }
     return Pair(after, StringT(str.value.copyOf()))
 }
@@ -218,24 +232,25 @@ fun strdup(function: FunctionCall, conf: Configuration): Pair<Configuration, Str
 fun strcat(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
     checkArgsSize(2, function)
     val (after1, str1) = eval(function.args[0], conf)
-    val (after2, str2) = eval(function.args[0], after1)
+    val (after2, str2) = eval(function.args[1], after1)
     if (str1 !is StringT || str2 !is StringT) {
         throw ExecutionException(
-            "strlen can not be applied to ${str1.type()} and ${str2.type()}")
+            "strcat can not be applied to ${str1.type()} and ${str2.type()}")
     }
-    return Pair(after2, StringT((str1.toString() + str2.toString()).toCharArray()))
+    val concatenated = String(str1.value) + String(str2.value)
+    return Pair(after2, StringT(concatenated.toCharArray()))
 }
 
 fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(2, function)
     val (after1, str1) = eval(function.args[0], conf)
-    val (after2, str2) = eval(function.args[0], after1)
+    val (after2, str2) = eval(function.args[1], after1)
     if (str1 !is StringT || str2 !is StringT) {
         throw ExecutionException(
-            "strlen can not be applied to ${str1.type()} and ${str2.type()}")
+            "strcmp can not be applied to ${str1.type()} and ${str2.type()}")
     }
-
-    return Pair(after2, IntT(str1.toString().compareTo(str2.toString())))
+    val res = String(str1.value).compareTo(String(str2.value))
+    return Pair(after2, IntT(res))
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {
