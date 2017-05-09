@@ -48,8 +48,8 @@ fun main(args: Array<String>) {
 
             val source = readFile(filename)
             val program = parseProgram(source)
-            val stackProgram = compile(program.main)
-            val asm = compile(stackProgram)
+            val stackProgram = compile(program)
+            val asm = compile(stackProgram, program)
 
             // write generated asm to a file
             val asmFilename = "$name.s" // TODO no extension in original filename
@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
 
             // invoke assembler (GCC)
             val rcRuntime = System.getenv("RC_RUNTIME") ?: "./runtime"
-            val gccProc = Runtime.getRuntime().exec("gcc -m32 -o $name $rcRuntime/runtime.o $asmFilename")
+            val gccProc = Runtime.getRuntime().exec("gcc -g -m32 -o $name $rcRuntime/runtime.o $asmFilename")
             if (gccProc.waitFor() != 0) {
                 print(gccProc.errorStream.reader().use { it.readText() })
             }

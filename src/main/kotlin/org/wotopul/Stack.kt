@@ -6,8 +6,6 @@ import org.wotopul.Configuration.OutputItem.Prompt
 import org.wotopul.StackOp.*
 import java.util.*
 
-val mainLabel = "_main"
-
 sealed class StackOp {
     object Nop : StackOp()
 
@@ -26,7 +24,7 @@ sealed class StackOp {
     class Jnz(val label: String) : StackOp()
 
     class Call(val name: String) : StackOp()
-    class Enter(val params: List<String>) : StackOp()
+    class Enter(val name: String, val params: List<String>) : StackOp()
     object Return : StackOp()
 }
 
@@ -34,7 +32,7 @@ fun compile(program: Program): List<StackOp> {
     fun compile(function: FunctionDefinition) =
         listOf(
             Label(function.name),
-            Enter(function.params)
+            Enter(function.name, function.params)
         ) + compile(function.body)
 
     val result = mutableListOf<StackOp>()

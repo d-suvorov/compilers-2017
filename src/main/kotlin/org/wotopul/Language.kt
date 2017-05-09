@@ -5,7 +5,12 @@ open class AbstractNode
 class Program(
     val functions: List<FunctionDefinition>,
     val main: Statement
-) : AbstractNode()
+)
+    : AbstractNode()
+{
+    fun functionDefinitionByName(name: String) =
+        functions.find { it.name == name }
+}
 
 class FunctionDefinition(
     val name: String,
