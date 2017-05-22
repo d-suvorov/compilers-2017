@@ -3,6 +3,8 @@ package org.wotopul
 import org.wotopul.X86Instr.*
 import org.wotopul.X86Instr.Operand.Register
 
+val mainLabel = "main"
+
 val wordSize = 4
 
 val registers: List<String> = listOf(
@@ -42,7 +44,7 @@ sealed class X86Instr {
             is Register -> registers[idx]
             is Literal -> "\$$value"
             is Variable -> name
-            is Stack -> "-${offset * wordSize}(%ebp)"
+            is Stack -> "${-offset * wordSize}(%ebp)"
         }
     }
 
@@ -54,9 +56,12 @@ sealed class X86Instr {
 
     class Push(val opnd: Operand) : X86Instr()
     class Pop(val opnd: Operand) : X86Instr()
+    object Pusha : X86Instr()
+    object Popa : X86Instr()
 
     class Call(val name: String) : X86Instr()
     object Ret : X86Instr()
+    object Leave : X86Instr()
 
     class Label(val name: String) : X86Instr()
     class Jmp(val label: String) : X86Instr()
@@ -98,9 +103,12 @@ sealed class X86Instr {
 
             is Push -> "pushl\t$opnd"
             is Pop -> "popl\t$opnd"
+            is Pusha -> "pushal"
+            is Popa -> "popal"
 
             is Call -> "call\t$name"
             is Ret -> "ret"
+            is Leave -> "leave"
 
             is Label -> "$name:"
             is Jmp -> "jmp\t$label"
@@ -128,25 +136,70 @@ sealed class X86Instr {
     }
 }
 
-class X86Configuration(
-    val locals: MutableSet<String> = mutableSetOf(),
-    var frameSize: Int = 0,
-    val symbolStack: MutableList<Operand> = mutableListOf())
-{
-    fun addLocal(name: String) {
-        locals += name
+fun X86FunctionContext(function: FunctionDefinition) =
+    X86FunctionContext(function.name, function.params, function.locals)
+
+class X86FunctionContext(val name: String, params: List<String>, locals: Set<String>) {
+    private val localsSize = locals.size
+    var tempSize = 0
+
+    val frameSize get() = localsSize + tempSize
+    val isStackFrameOpen get() = frameSize != 0
+
+    val symbolStack: MutableList<Operand> = mutableListOf()
+
+    private val localsSlots: MutableMap<String, Operand> = mutableMapOf()
+
+    init {
+        /*
+                   | args
+                   | return address
+            ebp -> | saved %ebp
+                   | [local-0]       -- if stack frame is open
+                   | ...
+            esp -> | [local-n]
+                   | symbol stack
+                   v
+         */
+
+        // assign slots to locals
+        var offset = 1
+        for (local in locals) {
+            localsSlots[local] = Operand.Stack(offset++)
+        }
+
+        // assign slots to params
+        offset = -2
+        for (param in params) {
+            localsSlots[param] = Operand.Stack(offset--)
+        }
     }
 
+    fun variableSlot(name: String) = localsSlots[name]!!
+
     fun top(): Operand = symbolStack.last()
+
+    // TODO document
+    fun get(offset: Int): Operand {
+        val idx = symbolStack.size - offset - 1
+        if (idx < 0)
+            throw AssertionError("cannot find argument on stack")
+        if (idx < eaxIdx) {
+            return Register(idx)
+        } else {
+            return Operand.Stack(localsSize - eaxIdx + idx + 1)
+        }
+    }
 
     fun push(): Operand {
         fun next(size: Int): Operand =
             when (size) {
+                // TODO can the cut'paste be eliminated (#get)
                 in 0 .. eaxIdx - 1 -> Register(size)
                 else -> {
                     val stackOffset = size - eaxIdx
-                    frameSize = maxOf(frameSize, stackOffset + 1)
-                    Operand.Stack(stackOffset)
+                    tempSize = maxOf(tempSize, stackOffset + 1)
+                    Operand.Stack(localsSize + stackOffset + 1)
                 }
             }
 
@@ -158,187 +211,286 @@ class X86Configuration(
     fun pop() = symbolStack.removeAt(symbolStack.lastIndex)
 }
 
-fun compile(program: List<StackOp>): String {
-    fun compileImpl(program: List<StackOp>): Pair<List<X86Instr>, X86Configuration> {
-        val conf = X86Configuration()
-        val result = mutableListOf<X86Instr>()
+fun compile(program: List<StackOp>, ast: Program): String {
+    // TODO find an appropriate place for it
+    val mainLocals = mutableSetOf<String>()
+    val mainIndex = program.indexOfFirst { it is StackOp.Label && it.name == mainLabel }
+    for (i in mainIndex .. program.lastIndex) {
+        val op = program[i]
+        if (op is StackOp.Load)
+            mainLocals += op.name
+        if (op is StackOp.Store)
+            mainLocals += op.name
+    }
 
-        fun compile(op: StackOp) {
-            when (op) {
-                is StackOp.Nop -> { /* very optimizing compiler */ }
+    fun compile(op: StackOp, conf: X86FunctionContext, out: MutableList<X86Instr>) {
+        when (op) {
+            is StackOp.Nop -> { /* very optimizing compiler */ }
 
-                is StackOp.Read -> {
-                    val top = conf.push()
-                    assert(top == Register(0))
-                    result += listOf(
-                        Call("read"),
-                        Move(eax, top)
+            is StackOp.Read -> {
+                val top = conf.push()
+                assert(top == Register(0))
+                out += listOf(
+                    Call("read"),
+                    Move(eax, top)
+                )
+            }
+
+            is StackOp.Write -> {
+                val top = conf.pop()
+                assert(top == Register(0))
+                out += listOf(
+                    Push(top),
+                    Call("write"),
+                    Pop(top)
+                )
+            }
+
+            is StackOp.Push -> {
+                val top = conf.push()
+                out += Move(Operand.Literal(op.value), top)
+            }
+
+            is StackOp.Pop -> {
+                conf.pop()
+            }
+
+            is StackOp.Load -> {
+                val top = conf.push()
+                if (top is Register) {
+                    out += Move(conf.variableSlot(op.name), top)
+                } else {
+                    out += listOf(
+                        Move(conf.variableSlot(op.name), edx),
+                        Move(edx, top)
                     )
                 }
+            }
 
-                is StackOp.Write -> {
-                    val top = conf.pop()
-                    assert(top == Register(0))
-                    result += listOf(
-                        Push(top),
-                        Call("write"),
-                        Pop(top)
-                        // TODO push return value of `write` to a symbol stack?
-                    )
-                }
+            is StackOp.Store -> {
+                val top = conf.pop()
+                assert(top == Register(0))
+                out += Move(top, conf.variableSlot(op.name))
+            }
 
-                is StackOp.Push -> {
-                    val top = conf.push()
-                    result += Move(Operand.Literal(op.value), top)
-                }
+            is StackOp.Binop -> {
+                val src = conf.pop()
+                val dst = conf.top()
 
-                is StackOp.Load -> {
-                    conf.addLocal(op.name)
-                    val top = conf.push()
-                    if (top is Register) {
-                        result += Move(Operand.Variable(op.name), top)
+                fun compileBinary(op: String) {
+                    if (dst is Register) {
+                        out += Binop(op, src, dst)
                     } else {
-                        result += listOf(
-                            Move(Operand.Variable(op.name), edx),
-                            Move(edx, top)
+                        out += listOf(
+                            Move(dst, edx),
+                            Binop(op, src, edx),
+                            Move(edx, dst)
                         )
                     }
                 }
 
-                is StackOp.Store -> {
-                    conf.addLocal(op.name)
-                    val top = conf.pop()
-                    assert(top == Register(0))
-                    result += Move(top, Operand.Variable(op.name))
-                }
+                when (op.op) {
+                    "+", "-", "*" -> compileBinary(op.op)
 
-                is StackOp.Binop -> {
-                    val src = conf.pop()
-                    val dst = conf.top()
-
-                    fun compileBinary(op: String) {
-                        if (dst is Register) {
-                            result += Binop(op, src, dst)
-                        } else {
-                            result += listOf(
-                                Move(dst, edx),
-                                Binop(op, src, edx),
-                                Move(edx, dst)
-                            )
-                        }
+                    "/", "%" -> {
+                        out += listOf(
+                            Move(dst, eax),
+                            Cltd,
+                            Div(src),
+                            Move(if (op.op == "/") eax else edx, dst)
+                        )
                     }
 
-                    when (op.op) {
-                        "+", "-", "*" -> compileBinary(op.op)
+                    "&&" -> {
+                        out += Binop("xor", eax, eax)
 
-                        "/", "%" -> {
-                            result += listOf(
-                                Move(dst, eax),
-                                Cltd,
-                                Div(src),
-                                Move(if (op.op == "/") eax else edx, dst)
-                            )
-                        }
-
-                        "&&" -> {
-                            result += Binop("xor", eax, eax)
-
-                            fun checkZero(opnd: Operand, res: String) {
-                                val opnd1: Register = if (opnd !is Register) {
-                                    result += Move(opnd, edx)
-                                    edx
-                                } else {
-                                    opnd
-                                }
-                                result += listOf(
-                                    Binop("and", opnd1, opnd1),
-                                    SetCC("!=", res)
-                                )
+                        fun checkZero(opnd: Operand, res: String) {
+                            val opnd1: Register = if (opnd !is Register) {
+                                out += Move(opnd, edx)
+                                edx
+                            } else {
+                                opnd
                             }
-
-                            checkZero(dst, "%al")
-                            checkZero(src, "%ah")
-
-                            result += listOf(
-                                Binop16("and", "%ah", "%al"),
-                                Binop16("xor", "%ah", "%ah"),
-                                Move(eax, dst)
+                            out += listOf(
+                                Binop("and", opnd1, opnd1),
+                                SetCC("!=", res)
                             )
                         }
 
-                        "||" -> {
-                            result += Binop("xor", eax, eax)
-                            compileBinary("or")
-                            result += listOf(
-                                SetCC("!=", "%al"),
-                                Move(eax, dst)
-                            )
-                        }
+                        checkZero(dst, "%al")
+                        checkZero(src, "%ah")
 
-                        "<", "<=", ">", ">=", "==", "!=" -> {
-                            result += Binop("xor", eax, eax)
-                            compileBinary("cmp")
-                            result += listOf(
-                                SetCC(op.op, "%al"),
-                                Move(eax, dst)
-                            )
-                        }
+                        out += listOf(
+                            Binop16("and", "%ah", "%al"),
+                            Binop16("xor", "%ah", "%ah"),
+                            Move(eax, dst)
+                        )
+                    }
+
+                    "||" -> {
+                        out += Binop("xor", eax, eax)
+                        compileBinary("or")
+                        out += listOf(
+                            SetCC("!=", "%al"),
+                            Move(eax, dst)
+                        )
+                    }
+
+                    "<", "<=", ">", ">=", "==", "!=" -> {
+                        out += Binop("xor", eax, eax)
+                        compileBinary("cmp")
+                        out += listOf(
+                            SetCC(op.op, "%al"),
+                            Move(eax, dst)
+                        )
                     }
                 }
+            }
 
-                is StackOp.Label -> result += Label(op.name)
+            is StackOp.Label -> out += Label(op.name)
 
-                is StackOp.Jump -> result += Jmp(op.label)
+            is StackOp.Jump -> out += Jmp(op.label)
 
-                is StackOp.Jnz -> {
-                    val top = conf.pop()
-                    assert(top == Register(0))
-                    result += listOf(
-                        Binop("test", top, top),
-                        Jnz(op.label)
-                    )
+            is StackOp.Jnz -> {
+                val top = conf.pop()
+                assert(top == Register(0))
+                out += listOf(
+                    Binop("test", top, top),
+                    Jnz(op.label)
+                )
+            }
+
+            is StackOp.Call -> {
+                /*var stackOffset = conf.symbolStack.size
+                conf.tempSize = maxOf(conf.tempSize, stackOffset)
+                // out += Binop("-", esp, Operand.Literal(stackOffset))
+                while (!conf.symbolStack.isEmpty()) {
+                    out += Move(conf.pop(), Operand.Stack(--stackOffset))
+                }
+                assert(stackOffset == 0)
+                out += Call(op.name)
+
+                // restore stack layout
+                // restore registers
+                val nArgs = ast.functionDefinitionByName(op.name)!!.params.size
+                val nShiftedSlots = stackOffset - nArgs
+                for (i in 0 .. nShiftedSlots) {
+                    val top = conf.push()
+                    out += Move(Operand.Stack(i), top)
                 }
 
-                is StackOp.Call -> TODO("unimplemented yet")
-                is StackOp.Enter -> TODO("unimplemented yet")
-                is StackOp.Return -> TODO("unimplemented yet")
+                val top = conf.push()
+                out += Move(eax, top)*/
+
+                // TODO save registers only when it is necessary and save only necessary amount of registers
+                // Save registers
+                for (i in 0 .. eaxIdx - 1)
+                    out += Push(Register(i))
+
+                // Push arguments
+                // TODO throw an exception if function is undefined
+                val nArgs = ast.functionDefinitionByName(op.name)!!.params.size
+                for (offset in nArgs - 1 downTo 0)
+                    out += Push(conf.get(offset))
+
+                // Call function
+                out += Call(op.name)
+
+                // Pop arguments
+                for (i in 0 .. nArgs - 1) {
+                    out += Pop(edx) // actual operand doesn't matter because the value is not used
+                    conf.pop()
+                }
+
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += Pop(Register(i))
+
+                // Put return value on a symbol stack
+                val top = conf.push()
+                out += Move(eax, top)
+            }
+
+            is StackOp.Enter -> { /* do nothing */ }
+
+            is StackOp.Return -> {
+                // move result to %eax
+                assert(conf.top() == Register(0))
+                out += Move(conf.pop(), eax)
+
+                // close stack frame
+                out += Leave
+
+                out += Ret
             }
         }
-
-        program.forEach(::compile)
-        return Pair(result, conf)
     }
 
-    val (body, conf) = compileImpl(program)
+    var conf: X86FunctionContext? = null
+    var nextCtx: X86FunctionContext? = null
+
+    /**
+     * TODO
+     */
+    fun functionStart(op: StackOp): Boolean {
+        if (op !is StackOp.Label)
+            return false
+        val function = ast.functionDefinitionByName(op.name)
+        if (function != null) {
+            nextCtx = X86FunctionContext(function)
+            return true
+        }
+        if (op.name == mainLabel) {
+            nextCtx = X86FunctionContext(mainLabel, emptyList(), mainLocals)
+            return true
+        }
+        return false
+    }
+
+    val body = mutableListOf<X86Instr>()
+    val result = StringBuilder()
+
+    fun openStackFrame(conf: X86FunctionContext) {
+        with(result) {
+            append(Push(ebp))
+            append(Move(esp, ebp))
+            append(Binop("-", Operand.Literal(wordSize * conf.frameSize), esp))
+        }
+    }
+
+    fun closeStackFrame() {
+        result.append(Leave)
+    }
+
+    fun compileCurrentFunctionBody() {
+        openStackFrame(conf!!)
+        body.forEach { result.append(it) }
+        body.clear()
+    }
+
+    for (op in program) {
+        if (functionStart(op)) {
+            if (conf != null) {
+                compileCurrentFunctionBody()
+            }
+            conf = nextCtx
+            result.append(Label(conf!!.name))
+        } else {
+            compile(op, conf!!, body)
+        }
+    }
+    compileCurrentFunctionBody() // last function
+    closeStackFrame()
 
     fun header(): String {
+        // TODO no need for StringBuilder
         val sb = StringBuilder("\t.text\n")
-        conf.locals.forEach {
-            sb.append("\t.comm\t$it,\t$wordSize,\t$wordSize\n")
-        }
         sb.append("\t.globl\tmain\n")
-            .append(Label("main"))
         return sb.toString()
     }
 
     fun footer(): String =
-        "${Binop("xor", eax, eax)}" +
-        "${Ret}"
+        "${Binop("xor", eax, eax)}" + "$Ret"
 
-    fun body(): String {
-        val sb = StringBuilder()
-        body.forEach { sb.append(it) }
-        return sb.toString()
-    }
-
-    fun openStackFrame(): String =
-        if (conf.frameSize == 0) ""
-        else "${Push(ebp)}" +
-            "${Move(esp, ebp)}" +
-            "${Binop("sub", Operand.Literal(wordSize * conf.frameSize), esp)}"
-
-    fun closeStackFrame(): String =
-        if (conf.frameSize == 0) "" else "\tleave\n"
-
-    return "${header()}${openStackFrame()}${body()}${closeStackFrame()}${footer()}"
+    return "${header()}$result${footer()}"
 }
