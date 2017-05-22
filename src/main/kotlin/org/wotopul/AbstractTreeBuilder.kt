@@ -16,7 +16,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         val name = ctx!!.ID().text
         val params = ctx.params().ID().map { it.text }
         val body = visit(ctx.stmt()) as Statement
-        return FunctionDefinition(name, params, body)
+        return FunctionDefinition(name, params, body, ctx.locals)
     }
 
     override fun visitSkip(ctx: LanguageParser.SkipContext?) = Skip

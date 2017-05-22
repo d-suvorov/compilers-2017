@@ -5,12 +5,18 @@ open class AbstractNode
 class Program(
     val functions: List<FunctionDefinition>,
     val main: Statement
-) : AbstractNode()
+)
+    : AbstractNode()
+{
+    fun functionDefinitionByName(name: String) =
+        functions.find { it.name == name }
+}
 
 class FunctionDefinition(
     val name: String,
     val params: List<String>,
-    val body: Statement
+    val body: Statement,
+    val locals: Set<String>
 ) : AbstractNode()
 
 class FunctionCall(val name: String, val args: List<Expr>)
