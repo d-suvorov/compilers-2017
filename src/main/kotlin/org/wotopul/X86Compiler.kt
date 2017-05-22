@@ -184,10 +184,11 @@ class X86FunctionContext(val name: String, params: List<String>, locals: Set<Str
         val idx = symbolStack.size - offset - 1
         if (idx < 0)
             throw AssertionError("cannot find argument on stack")
-        if (idx < eaxIdx)
+        if (idx < eaxIdx) {
             return Register(idx)
-        else
-            return Operand.Stack(localsSize + idx + 1)
+        } else {
+            return Operand.Stack(localsSize - eaxIdx + idx + 1)
+        }
     }
 
     fun push(): Operand {
