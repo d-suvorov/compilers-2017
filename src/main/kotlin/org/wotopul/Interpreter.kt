@@ -27,6 +27,21 @@ sealed class Primitive {
         else -> throw ExecutionException(
             "conversions of ${type()} to boolean are not allowed")
     }
+
+    fun asIntT(): IntT =
+        if (this is IntT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to int are not allowed")
+
+    fun asCharT(): CharT =
+        if (this is CharT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to char are not allowed")
+
+    fun asStringT(): StringT =
+        if (this is StringT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to string are not allowed")
 }
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
@@ -170,20 +185,16 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
 fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(1, function)
     val (after, arg) = eval(function.args.first(), conf)
-    if (arg !is StringT)
-        throw ExecutionException("strlen can not be applied to ${arg.type()}")
-    return Pair(after, IntT(arg.value.size))
+    val res = strlen(arg.asStringT())
+    return Pair(after, res)
 }
 
 fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, CharT> {
     checkArgsSize(2, function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
-    if (str !is StringT || idx !is IntT) {
-        throw ExecutionException(
-            "strget can not be applied to ${str.type()} and ${idx.type()}")
-    }
-    return Pair(after2, CharT(str.value[idx.value]))
+    val res = strget(str.asStringT(), idx.asIntT())
+    return Pair(after2, res)
 }
 
 fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
@@ -191,12 +202,8 @@ fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
     val (after3, chr) = eval(function.args[2], after2)
-    if (str !is StringT || idx !is IntT || chr !is CharT) {
-        throw ExecutionException(
-            "strset can not be applied to ${str.type()} and ${idx.type()} and ${chr.type()}")
-    }
-    str.value[idx.value] = chr.value
-    return Pair(after3, IntT(0))
+    val res = strset(str.asStringT(), idx.asIntT(), chr.asCharT())
+    return Pair(after3, res)
 }
 
 fun strsub(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
@@ -204,57 +211,39 @@ fun strsub(function: FunctionCall, conf: Configuration): Pair<Configuration, Str
     val (after1, str) = eval(function.args[0], conf)
     val (after2, offset) = eval(function.args[1], after1)
     val (after3, length) = eval(function.args[2], after2)
-    if (str !is StringT || offset !is IntT || length !is IntT) {
-        throw ExecutionException(
-            "strsub can not be applied to ${str.type()} and ${offset.type()} and ${length.type()}")
-    }
-    val substring = String(str.value, offset.value, length.value)
-    return Pair(after3, StringT(substring.toCharArray()))
+    val res = strsub(str.asStringT(), offset.asIntT(), length.asIntT())
+    return Pair(after3, res)
 }
 
 fun strdup(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
     checkArgsSize(1, function)
     val (after, str) = eval(function.args[0], conf)
-    if (str !is StringT) {
-        throw ExecutionException("strdup can not be applied to ${str.type()}")
-    }
-    return Pair(after, StringT(str.value.copyOf()))
+    val res = strdup(str.asStringT())
+    return Pair(after, res)
 }
 
 fun strcat(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
     checkArgsSize(2, function)
     val (after1, str1) = eval(function.args[0], conf)
     val (after2, str2) = eval(function.args[1], after1)
-    if (str1 !is StringT || str2 !is StringT) {
-        throw ExecutionException(
-            "strcat can not be applied to ${str1.type()} and ${str2.type()}")
-    }
-    val concatenated = String(str1.value) + String(str2.value)
-    return Pair(after2, StringT(concatenated.toCharArray()))
+    val res = strcat(str1.asStringT(), str2.asStringT())
+    return Pair(after2, res)
 }
 
 fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(2, function)
     val (after1, str1) = eval(function.args[0], conf)
     val (after2, str2) = eval(function.args[1], after1)
-    if (str1 !is StringT || str2 !is StringT) {
-        throw ExecutionException(
-            "strcmp can not be applied to ${str1.type()} and ${str2.type()}")
-    }
-    val res = String(str1.value).compareTo(String(str2.value))
-    return Pair(after2, IntT(res))
+    val res = strcmp(str1.asStringT(), str2.asStringT())
+    return Pair(after2, res)
 }
 
 fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
     checkArgsSize(2, function)
     val (after1, length) = eval(function.args[0], conf)
     val (after2, chr) = eval(function.args[1], after1)
-    if (length !is IntT || chr !is CharT) {
-        throw ExecutionException(
-            "strmake can not be applied to ${length.type()} and ${chr.type()}")
-    }
-    val str = CharArray(length.value) { chr.value }
-    return Pair(after2, StringT(str))
+    val res = strmake(length.asIntT(), chr.asCharT())
+    return Pair(after2, res)
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {

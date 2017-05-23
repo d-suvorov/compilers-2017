@@ -203,8 +203,52 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             }
 
             is Call -> {
-                curr.stack += IntT(ip) // treat instruction pointer as an integer
-                next = labelIndex(op.name)
+                when (op.name) {
+                    "strlen" -> {
+                        val str = popOrThrow()
+                        curr.stack += strlen(str.asStringT())
+                    }
+                    "strget" -> {
+                        val str = popOrThrow()
+                        val idx = popOrThrow()
+                        curr.stack += strget(str.asStringT(), idx.asIntT())
+                    }
+                    "strset" -> {
+                        val str = popOrThrow()
+                        val idx = popOrThrow()
+                        val chr = popOrThrow()
+                        curr.stack += strset(str.asStringT(), idx.asIntT(), chr.asCharT())
+                    }
+                    "strsub" -> {
+                        val str = popOrThrow()
+                        val offset = popOrThrow()
+                        val length = popOrThrow()
+                        curr.stack += strsub(str.asStringT(), offset.asIntT(), length.asIntT())
+                    }
+                    "strdup" -> {
+                        val str = popOrThrow()
+                        curr.stack += strdup(str.asStringT())
+                    }
+                    "strcat" -> {
+                        val str1 = popOrThrow()
+                        val str2 = popOrThrow()
+                        curr.stack += strcat(str1.asStringT(), str2.asStringT())
+                    }
+                    "strcmp" -> {
+                        val str1 = popOrThrow()
+                        val str2 = popOrThrow()
+                        curr.stack += strcmp(str1.asStringT(), str2.asStringT())
+                    }
+                    "strmake" -> {
+                        val length = popOrThrow()
+                        val chr = popOrThrow()
+                        curr.stack += strmake(length.asIntT(), chr.asCharT())
+                    }
+                    else -> {
+                        curr.stack += IntT(ip) // treat instruction pointer as an integer
+                        next = labelIndex(op.name)
+                    }
+                }
             }
 
             is Enter -> {
