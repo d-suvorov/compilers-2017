@@ -248,7 +248,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Push -> {
                 val top = conf.push()
-                out += Move(Operand.Literal(op.value), top)
+                out += Move(Operand.Literal(op.value.toInt()), top)
             }
 
             is StackOp.Pop -> {

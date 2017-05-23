@@ -27,15 +27,6 @@ sealed class Primitive {
         else -> throw ExecutionException(
             "conversions of ${type()} to boolean are not allowed")
     }
-
-    companion object {
-        fun of(value: Any) : Primitive = when (value) {
-            is Int -> IntT(value)
-            is Char -> CharT(value)
-            is String -> StringT(value.toCharArray())
-            else -> throw AssertionError()
-        }
-    }
 }
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =

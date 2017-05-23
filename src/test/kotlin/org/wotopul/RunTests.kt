@@ -7,7 +7,7 @@ import java.io.File
 fun main(args: Array<String>) {
     val baseDir = "compiler-tests/"
     var success = true
-    for (suite in arrayOf(/*"core", */ "expressions" /*, "deep-expressions"*/)) {
+    for (suite in arrayOf(/*"core", */ "expressions", "deep-expressions")) {
         val testDir = "$baseDir/$suite"
         val list: List<String> = File(testDir).list().sorted()
             .filter({ it.endsWith(".expr") })
@@ -46,6 +46,6 @@ fun runInterpreter(program: Program, input: List<Int>): String =
         .reduce(String::plus)
 
 fun runStackMachine(program: Program, input: List<Int>): String =
-    interpret(compile(program.main), input)
+    interpret(compile(program), input)
         .map(Configuration.OutputItem::toString)
         .reduce(String::plus)
