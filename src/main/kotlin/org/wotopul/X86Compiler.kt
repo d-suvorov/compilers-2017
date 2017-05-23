@@ -37,12 +37,14 @@ sealed class X86Instr {
             }
         }
         class Literal(val value: Int) : Operand()
+        class StringLiteral(val label: String) : Operand()
         class Variable(val name: String) : Operand()
         class Stack(val offset: Int) : Operand()
 
         override fun toString(): String = when (this) {
             is Register -> registers[idx]
             is Literal -> "\$$value"
+            is StringLiteral -> "\$$label"
             is Variable -> name
             is Stack -> "${-offset * wordSize}(%ebp)"
         }
@@ -223,6 +225,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
             mainLocals += op.name
     }
 
+    val stringLiteralsByLabel = mutableListOf<Pair<String, String>>()
+
     fun compile(op: StackOp, conf: X86FunctionContext, out: MutableList<X86Instr>) {
         when (op) {
             is StackOp.Nop -> { /* very optimizing compiler */ }
@@ -248,7 +252,14 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Push -> {
                 val top = conf.push()
-                out += Move(Operand.Literal(op.value.toInt()), top)
+                val opnd = if (op.value is Primitive.StringT) {
+                    val label = "_internal_string_${stringLiteralsByLabel.size}"
+                    stringLiteralsByLabel += label to String(op.value.value)
+                    Operand.StringLiteral(label)
+                } else {
+                    Operand.Literal(op.value.toInt())
+                }
+                out += Move(opnd, top)
             }
 
             is StackOp.Pop -> {
@@ -389,7 +400,10 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
                 // Push arguments
                 // TODO throw an exception if function is undefined
-                val nArgs = ast.functionDefinitionByName(op.name)!!.params.size
+                val nArgs = if (op.name in stringIntrinsics())
+                    stringIntrinsicNArgs(op.name)
+                else
+                    ast.functionDefinitionByName(op.name)!!.params.size
                 for (offset in nArgs - 1 downTo 0)
                     out += Push(conf.get(offset))
 
@@ -483,9 +497,15 @@ fun compile(program: List<StackOp>, ast: Program): String {
     closeStackFrame()
 
     fun header(): String {
-        // TODO no need for StringBuilder
-        val sb = StringBuilder("\t.text\n")
-        sb.append("\t.globl\tmain\n")
+        val sb = StringBuilder()
+        with (sb) {
+            append("\t.text\n")
+            append("\t.globl\tmain\n")
+            for (sl in stringLiteralsByLabel) {
+                append(Label(sl.first))
+                append("\t.ascii \"${sl.second}\\0\"\n")
+            }
+        }
         return sb.toString()
     }
 

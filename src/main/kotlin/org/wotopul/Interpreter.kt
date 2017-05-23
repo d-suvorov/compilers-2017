@@ -183,14 +183,14 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
     }
 
 fun strlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
-    checkArgsSize(1, function)
+    checkArgsSize(function)
     val (after, arg) = eval(function.args.first(), conf)
     val res = strlen(arg.asStringT())
     return Pair(after, res)
 }
 
 fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, CharT> {
-    checkArgsSize(2, function)
+    checkArgsSize(function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
     val res = strget(str.asStringT(), idx.asIntT())
@@ -198,7 +198,7 @@ fun strget(function: FunctionCall, conf: Configuration): Pair<Configuration, Cha
 }
 
 fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
-    checkArgsSize(3, function)
+    checkArgsSize(function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, idx) = eval(function.args[1], after1)
     val (after3, chr) = eval(function.args[2], after2)
@@ -207,7 +207,7 @@ fun strset(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
 }
 
 fun strsub(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
-    checkArgsSize(3, function)
+    checkArgsSize(function)
     val (after1, str) = eval(function.args[0], conf)
     val (after2, offset) = eval(function.args[1], after1)
     val (after3, length) = eval(function.args[2], after2)
@@ -216,14 +216,14 @@ fun strsub(function: FunctionCall, conf: Configuration): Pair<Configuration, Str
 }
 
 fun strdup(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
-    checkArgsSize(1, function)
+    checkArgsSize(function)
     val (after, str) = eval(function.args[0], conf)
     val res = strdup(str.asStringT())
     return Pair(after, res)
 }
 
 fun strcat(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
-    checkArgsSize(2, function)
+    checkArgsSize(function)
     val (after1, str1) = eval(function.args[0], conf)
     val (after2, str2) = eval(function.args[1], after1)
     val res = strcat(str1.asStringT(), str2.asStringT())
@@ -231,7 +231,7 @@ fun strcat(function: FunctionCall, conf: Configuration): Pair<Configuration, Str
 }
 
 fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
-    checkArgsSize(2, function)
+    checkArgsSize(function)
     val (after1, str1) = eval(function.args[0], conf)
     val (after2, str2) = eval(function.args[1], after1)
     val res = strcmp(str1.asStringT(), str2.asStringT())
@@ -239,11 +239,15 @@ fun strcmp(function: FunctionCall, conf: Configuration): Pair<Configuration, Int
 }
 
 fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, StringT> {
-    checkArgsSize(2, function)
+    checkArgsSize(function)
     val (after1, length) = eval(function.args[0], conf)
     val (after2, chr) = eval(function.args[1], after1)
     val res = strmake(length.asIntT(), chr.asCharT())
     return Pair(after2, res)
+}
+
+fun checkArgsSize(function: FunctionCall) {
+    return checkArgsSize(stringIntrinsicNArgs(function.name), function)
 }
 
 fun checkArgsSize(paramsSize: Int, function: FunctionCall) {

@@ -54,19 +54,19 @@ stmt returns [Set<String> locals]
           for (ElifContext elifCtx : $elifs)
               res.addAll(elifCtx.locals);
           $locals = res;
-      }                                                     # if
+      }                                                                   # if
     | WHILE cond=expr DO body=stmt OD
-      { $locals = join_sets($body.locals); }                # while
+      { $locals = join_sets($body.locals); }                              # while
     | REPEAT body=stmt UNTIL cond=expr
-      { $locals = join_sets($body.locals); }                # repeat
+      { $locals = join_sets($body.locals); }                              # repeat
     | FOR  init=stmt ','
            cond=expr ','
           after=stmt DO body=stmt OD
-      { $locals = join_sets($body.locals); /* TODO init, after */ } # for
+      { $locals = join_sets($init.locals, $after.locals, $body.locals); } # for
     | RETURN expr
-      { $locals = create_set(); }                           # returnStatement
+      { $locals = create_set(); }                                         # returnStatement
     | function_
-      { $locals = create_set(); }                           # functionStatement
+      { $locals = create_set(); }                                         # functionStatement
     ;
 
 elif returns [Set<String> locals]

@@ -32,3 +32,18 @@ fun strmake(length: IntT, chr: CharT): StringT {
     val str = CharArray(length.value) { chr.value }
     return StringT(str)
 }
+
+private val stringIntrinsicNArgs = mapOf(
+    "strlen" to 1,
+    "strget" to 2,
+    "strset" to 3,
+    "strsub" to 3,
+    "strdup" to 1,
+    "strcat" to 2,
+    "strcmp" to 2,
+    "strmake" to 2
+)
+
+fun stringIntrinsics() = stringIntrinsicNArgs.keys
+
+fun stringIntrinsicNArgs(name: String): Int = stringIntrinsicNArgs[name]!!
