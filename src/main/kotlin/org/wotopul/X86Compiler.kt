@@ -252,14 +252,33 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Push -> {
                 val top = conf.push()
-                val opnd = if (op.value is Primitive.StringT) {
+                if (op.value is Primitive.StringT) {
                     val label = "_internal_string_${stringLiteralsByLabel.size}"
                     stringLiteralsByLabel += label to String(op.value.value)
-                    Operand.StringLiteral(label)
+                    val opnd = Operand.StringLiteral(label)
+                    // out += Move(opnd, top)
+                    // Call `strdup` to extract mutable string
+                    // This hack will hopefully go away with GC introduction
+                    // TODO save registers only when it is necessary and save only necessary amount of registers
+                    // Save registers
+                    for (i in 0 .. eaxIdx - 1)
+                        out += Push(Register(i))
+                    // Push arguments
+                    out += Push(opnd)
+                    // Call function
+                    out += Call("strdup")
+                    // Pop arguments
+                    out += Pop(edx) // actual operand doesn't matter because the value is not used
+                    // Restore registers
+                    for (i in eaxIdx - 1 downTo 0)
+                        out += Pop(Register(i))
+                    // Put return value on a symbol stack
+                    // val top1 = conf.push()
+                    out += Move(eax, top)
                 } else {
-                    Operand.Literal(op.value.toInt())
+                    val opnd = Operand.Literal(op.value.toInt())
+                    out += Move(opnd, top)
                 }
-                out += Move(opnd, top)
             }
 
             is StackOp.Pop -> {
@@ -408,7 +427,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     out += Push(conf.get(offset))
 
                 // Call function
-                out += Call(op.name)
+                val name = if (op.name == "strcat") "_strcat" else op.name
+                out += Call(name)
 
                 // Pop arguments
                 for (i in 0 .. nArgs - 1) {

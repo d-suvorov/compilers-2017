@@ -1,5 +1,5 @@
 all:
-	gcc -m32 -c runtime.c
+	gcc -Wall -Wextra -Werror -pedantic -m32 -c runtime.c
 
 clean:
 	rm -f runtime.o
