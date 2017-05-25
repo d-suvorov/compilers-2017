@@ -266,7 +266,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     // Push arguments
                     out += Push(opnd)
                     // Call function
-                    out += Call("strdup")
+                    out += Call("_strdup_raw")
                     // Pop arguments
                     out += Pop(edx) // actual operand doesn't matter because the value is not used
                     // Restore registers
@@ -427,7 +427,9 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     out += Push(conf.get(offset))
 
                 // Call function
-                val name = if (op.name == "strcat") "_strcat" else op.name
+                val name = if (op.name in stringIntrinsics())
+                    stringIntrinsicWrapperName(op.name)
+                else op.name
                 out += Call(name)
 
                 // Pop arguments

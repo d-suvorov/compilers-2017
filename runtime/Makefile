@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic -m32
+CFLAGS = -g -std=c11 -Wall -Wextra -Werror -pedantic -m32
 
 runtime.o: io.o strings.o counting_pointer.o
 	ld -m elf_i386 -r io.o strings.o counting_pointer.o -o runtime.o

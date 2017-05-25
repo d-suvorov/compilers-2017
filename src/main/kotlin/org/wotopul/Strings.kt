@@ -47,3 +47,5 @@ private val stringIntrinsicNArgs = mapOf(
 fun stringIntrinsics() = stringIntrinsicNArgs.keys
 
 fun stringIntrinsicNArgs(name: String): Int = stringIntrinsicNArgs[name]!!
+
+fun stringIntrinsicWrapperName(name: String) = "_${name}_wrapper"
