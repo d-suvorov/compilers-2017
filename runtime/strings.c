@@ -1,19 +1,9 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
-void write(int val) {
-    printf("%d\n", val);
-}
+#include "counting_pointer.h"
 
-int read() {
-    int val;
-    printf("> ");
-    scanf("%d", &val);
-    return val;
-}
-
-// Take these from C standard library
+/* Take these from C standard library */
 size_t strlen(const char * str);
 char * strdup(const char * s);
 int strcmp(const char *s1, const char *s2);
@@ -34,7 +24,7 @@ char * strsub(char * str, size_t offset, size_t length) {
     return res;
 }
 
-// `strcat` from C standard library has different semantics -- it appends `str2` to `str1`
+/* `strcat` from C standard library has different semantics */
 char * _strcat(char * str1, char * str2) {
     size_t len1 = strlen(str1);
     size_t len2 = strlen(str2);
