@@ -141,7 +141,7 @@ sealed class X86Instr {
 fun X86FunctionContext(function: FunctionDefinition) =
     X86FunctionContext(function.name, function.params, function.locals)
 
-class X86FunctionContext(val name: String, params: List<String>, locals: Set<String>) {
+class X86FunctionContext(val name: String, params: List<String>, val locals: Set<String>) {
     private val localsSize = locals.size
     var tempSize = 0
 
@@ -256,7 +256,6 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     val label = "_internal_string_${stringLiteralsByLabel.size}"
                     stringLiteralsByLabel += label to String(op.value.value)
                     val opnd = Operand.StringLiteral(label)
-                    // out += Move(opnd, top)
                     // Call `strdup` to extract mutable string
                     // This hack will hopefully go away with GC introduction
                     // TODO save registers only when it is necessary and save only necessary amount of registers
@@ -273,7 +272,6 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     for (i in eaxIdx - 1 downTo 0)
                         out += Pop(Register(i))
                     // Put return value on a symbol stack
-                    // val top1 = conf.push()
                     out += Move(eax, top)
                 } else {
                     val opnd = Operand.Literal(op.value.toInt())
@@ -282,7 +280,22 @@ fun compile(program: List<StackOp>, ast: Program): String {
             }
 
             is StackOp.Pop -> {
-                conf.pop()
+                val top = conf.pop()
+
+                // Call `_decrease_count`
+                // TODO save registers only when it is necessary and save only necessary amount of registers
+                // Save registers
+                for (i in 0 .. eaxIdx - 1)
+                    out += Push(Register(i))
+                // Push arguments
+                out += Push(top)
+                // Call function
+                out += Call("_decrease_count")
+                // Pop arguments
+                out += Pop(edx) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += Pop(Register(i))
             }
 
             is StackOp.Load -> {
@@ -299,8 +312,44 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Store -> {
                 val top = conf.pop()
+                val slot = conf.variableSlot(op.name)
                 assert(top == Register(0))
-                out += Move(top, conf.variableSlot(op.name))
+
+                if (op.name[0].isUpperCase()) {
+                    // Call `_decrease_count`
+                    // TODO save registers only when it is necessary and save only necessary amount of registers
+                    // Save registers
+                    for (i in 0..eaxIdx - 1)
+                        out += Push(Register(i))
+                    // Push arguments
+                    out += Push(slot)
+                    // Call function
+                    out += Call("_decrease_count")
+                    // Pop arguments
+                    out += Pop(edx) // actual operand doesn't matter because the value is not used
+                    // Restore registers
+                    for (i in eaxIdx - 1 downTo 0)
+                        out += Pop(Register(i))
+                }
+
+                out += Move(top, slot)
+
+                if (op.name[0].isUpperCase()) {
+                    // Call `_increase_count`
+                    // TODO save registers only when it is necessary and save only necessary amount of registers
+                    // Save registers
+                    for (i in 0..eaxIdx - 1)
+                        out += Push(Register(i))
+                    // Push arguments
+                    out += Push(top)
+                    // Call function
+                    out += Call("_increase_count")
+                    // Pop arguments
+                    out += Pop(edx) // actual operand doesn't matter because the value is not used
+                    // Restore registers
+                    for (i in eaxIdx - 1 downTo 0)
+                        out += Pop(Register(i))
+                }
             }
 
             is StackOp.Binop -> {
@@ -486,11 +535,38 @@ fun compile(program: List<StackOp>, ast: Program): String {
     val body = mutableListOf<X86Instr>()
     val result = StringBuilder()
 
-    fun openStackFrame(conf: X86FunctionContext) {
+    fun openStackFrame(c: X86FunctionContext) {
         with(result) {
             append(Push(ebp))
             append(Move(esp, ebp))
-            append(Binop("-", Operand.Literal(wordSize * conf.frameSize), esp))
+            append(Binop("-", Operand.Literal(wordSize * c.frameSize), esp))
+        }
+    }
+
+    fun initializeLocals(c: X86FunctionContext) {
+        c.locals.map { c.variableSlot(it) }
+            .forEach { result.append(Move(Operand.Literal(0), it)) }
+    }
+
+    fun freeLocals(c: X86FunctionContext) {
+        with (result) {
+            for (local in c.locals) {
+                val slot = c.variableSlot(local)
+                // Call `_decrease_count`
+                // TODO save registers only when it is necessary and save only necessary amount of registers
+                // Save registers
+                for (i in 0..eaxIdx - 1)
+                    append(Push(Register(i)))
+                // Push arguments
+                append(Push(slot))
+                // Call function
+                append(Call("_decrease_count"))
+                // Pop arguments
+                append(Pop(edx)) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    append(Pop(Register(i)))
+            }
         }
     }
 
@@ -500,6 +576,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
     fun compileCurrentFunctionBody() {
         openStackFrame(conf!!)
+        initializeLocals(conf!!)
         body.forEach { result.append(it) }
         body.clear()
     }

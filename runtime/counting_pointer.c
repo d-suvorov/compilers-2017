@@ -23,6 +23,9 @@ void _increase_count(struct count_ptr * ptr) {
 }
 
 void _decrease_count(struct count_ptr * ptr) {
+    if (ptr == NULL)
+        return;
     if (--ptr->count == 0)
         free(ptr->data);
+    free(ptr);
 }
