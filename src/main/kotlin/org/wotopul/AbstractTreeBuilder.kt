@@ -79,14 +79,25 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
         FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 
-    override fun visitBoxedArray(ctx: LanguageParser.BoxedArrayContext?): BoxedArrayInitializer =
-        BoxedArrayInitializer(visitArrayInitializerListImpl(ctx!!.boxedArrayInitializer().arrayInitializerList()))
+    override fun visitBoxedArray(ctx: LanguageParser.BoxedArrayContext?): BoxedArrayInitializer {
+        // ? is necessary if Java returns null. Something is broken in Kotlin?
+        val arrayInitializerListContext: LanguageParser.ArrayInitializerListContext? =
+            ctx!!.boxedArrayInitializer().arrayInitializerList()
+        return BoxedArrayInitializer(visitArrayInitializerListImpl(arrayInitializerListContext))
+    }
 
-    override fun visitUnboxedArray(ctx: LanguageParser.UnboxedArrayContext?): UnboxedArrayInitializer =
-        UnboxedArrayInitializer(visitArrayInitializerListImpl(ctx!!.unboxedArrayInitializer().arrayInitializerList()))
+    override fun visitUnboxedArray(ctx: LanguageParser.UnboxedArrayContext?): UnboxedArrayInitializer {
+        // ? is necessary if Java returns null. Something is broken in Kotlin?
+        val arrayInitializerListContext: LanguageParser.ArrayInitializerListContext? =
+            ctx!!.unboxedArrayInitializer().arrayInitializerList()
+        return UnboxedArrayInitializer(visitArrayInitializerListImpl(arrayInitializerListContext))
+    }
 
-    private fun visitArrayInitializerListImpl(ctx: LanguageParser.ArrayInitializerListContext): Array<Expr> =
-        ctx.expr().map { visit(it) as Expr }.toTypedArray()
+    private fun visitArrayInitializerListImpl(ctx: LanguageParser.ArrayInitializerListContext?): Array<Expr> {
+        if (ctx == null)
+            return emptyArray()
+        return ctx.expr().map { visit(it) as Expr }.toTypedArray()
+    }
 
     override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
         val variable = visit(ctx!!.variable) as Variable

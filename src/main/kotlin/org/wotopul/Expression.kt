@@ -3,28 +3,28 @@ package org.wotopul
 import org.wotopul.Expr.*
 import org.wotopul.VarValue.*
 
+fun evalArray(conf: Configuration, variable: Variable, depth: Int): Pair<Configuration, VarValue> {
+    val array: VarValue = conf.environment[variable.name]
+        ?: throw ExecutionException("undefined variable: ${variable.name}")
+
+    if (depth == 0) {
+        return Pair(conf, array)
+    } else {
+        val (conf1, value) = evalArray(conf, variable, depth - 1)
+        val (conf2, index) = eval(variable.indices[depth - 1], conf1)
+        when (value) {
+            is UnboxedArrayT -> return Pair(conf2, IntT(value.get(index.toInt())))
+            is BoxedArrayT -> return Pair(conf2, value.get(index.toInt()) as VarValue)
+            else -> throw ExecutionException("cannot index primitive value")
+        }
+    }
+}
+
 fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when (expr) {
     is Const -> Pair(conf, IntT(expr.value))
 
     is Variable -> {
-        val variable: VarValue = conf.environment[expr.name]
-            ?: throw ExecutionException("undefined variable: ${expr.name}")
-        if (!expr.array) {
-            Pair(conf, variable)
-        } else {
-            // TODO cut'n'paste
-            val indices = Array(expr.indices.size, { 0 })
-            var curr = conf
-            for ((i, e) in expr.indices.withIndex()) {
-                val (next, item) = eval(e, curr)
-                indices[i] = item.toInt()
-                curr = next
-            }
-            assert(indices.size == 1)
-            val array = variable as UnboxedArrayT
-            val value = IntT(array.value[indices.first()])
-            Pair(curr, value)
-        }
+        evalArray(conf, expr, expr.indices.size)
     }
 
     is Binop -> {
@@ -49,7 +49,18 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
         Pair(curr, UnboxedArrayT(arr))
     }
 
-    is BoxedArrayInitializer -> TODO()
+    is BoxedArrayInitializer -> {
+        val arr = Array<ReferenceT?>(expr.exprList.size, { null })
+        var curr = conf
+        for ((i, e) in expr.exprList.withIndex()) {
+            val (next, item) = eval(e, curr)
+            if (item !is ReferenceT)
+                throw ExecutionException("primitive values cannot be stored in a boxed array")
+            arr[i] = item
+            curr = next
+        }
+        Pair(curr, BoxedArrayT(arr))
+    }
 }
 
 fun evalBinary(op: String, left: VarValue, right: VarValue): VarValue {

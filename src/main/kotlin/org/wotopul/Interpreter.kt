@@ -4,17 +4,61 @@ import org.wotopul.Configuration.OutputItem
 import org.wotopul.Statement.*
 import org.wotopul.VarValue.*
 
+interface ReferenceT
+
 sealed class VarValue {
     class IntT(val value: Int) : VarValue()
     class CharT(val value: Char) : VarValue()
-    class StringT(val value: CharArray) : VarValue()
-    class UnboxedArrayT(val value: Array<Int>) : VarValue()
+    class StringT(val value: CharArray) : VarValue(), ReferenceT
+
+    class UnboxedArrayT(val value: Array<Int>?) : VarValue(), ReferenceT {
+        val size: Int
+            get() {
+                if (value == null)
+                    throw ExecutionException("null pointer")
+                return value.size
+            }
+
+        fun get(i: Int): Int {
+            if (value == null)
+                throw ExecutionException("null pointer")
+            return value[i]
+        }
+
+        fun set(i: Int, v: Int) {
+            if (value == null)
+                throw ExecutionException("null pointer")
+            value[i] = v
+        }
+    }
+
+    class BoxedArrayT(val value: Array<ReferenceT?>?) : VarValue(), ReferenceT {
+        val size: Int
+            get() {
+                if (value == null)
+                    throw ExecutionException("null pointer")
+                return value.size
+            }
+
+        fun get(i: Int): ReferenceT? {
+            if (value == null)
+                throw ExecutionException("null pointer")
+            return value[i]
+        }
+
+        fun set(i: Int, v: ReferenceT?) {
+            if (value == null)
+                throw ExecutionException("null pointer")
+            value[i] = v
+        }
+    }
 
     fun type(): String = when (this) {
         is IntT -> "int"
         is CharT -> "char"
         is StringT -> "string"
         is UnboxedArrayT -> "unboxed array"
+        is BoxedArrayT -> "boxed array"
     }
 
     fun toInt(): Int = when (this) {
@@ -49,6 +93,11 @@ sealed class VarValue {
         if (this is UnboxedArrayT) this
         else throw ExecutionException(
             "conversions of ${type()} to unboxed array are not allowed")
+
+    fun asBoxedArrayT(): BoxedArrayT =
+        if (this is BoxedArrayT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to boxed array are not allowed")
 }
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
@@ -103,28 +152,21 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
         is Skip -> start
 
         is Assignment -> {
-            val (afterCond, value) = eval(stmt.value, start)
+            val (afterCond, rhsValue) = eval(stmt.value, start)
             val variable = stmt.variable
             val name = variable.name
             if (!variable.array) {
-                val updated = afterCond.environment + (name to value)
+                val updated = afterCond.environment + (name to rhsValue)
                 Configuration(afterCond.input, afterCond.output, updated, afterCond.functions)
             } else {
-                val array = (afterCond.environment[name]
-                    ?: throw ExecutionException("undefined variable: $name")) as UnboxedArrayT
-
-                // TODO cut'n'paste
-                val indices = Array(variable.indices.size, { 0 })
-                var curr = afterCond
-                for ((i, e) in variable.indices.withIndex()) {
-                    val (next, item) = eval(e, curr)
-                    indices[i] = item.toInt()
-                    curr = next
+                val (lastConf1, lastArray) = evalArray(afterCond, variable, variable.indices.size - 1)
+                val (lastConf2, index) = eval(variable.indices.last(), lastConf1)
+                when (lastArray) {
+                    is UnboxedArrayT -> lastArray.set(index.toInt(), rhsValue.toInt())
+                    is BoxedArrayT -> lastArray.set(index.toInt(), rhsValue as ReferenceT)
+                    else -> throw ExecutionException("cannot index primitive value")
                 }
-                assert(indices.size == 1)
-                array.value[indices.first()] = value.toInt()
-
-                curr
+                lastConf2
             }
         }
 
@@ -141,22 +183,19 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
                 val updated = start.environment + (name to IntT(inputHead))
                 Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
             } else {
-                val array = (start.environment[name]
-                    ?: throw ExecutionException("undefined variable: $name")) as UnboxedArrayT
-
-                // TODO cut'n'paste
-                val indices = Array(variable.indices.size, { 0 })
-                var curr = start
-                for ((i, e) in variable.indices.withIndex()) {
-                    val (next, item) = eval(e, curr)
-                    indices[i] = item.toInt()
-                    curr = next
+                val (lastConf1, lastArray) = evalArray(start, variable, variable.indices.size - 1)
+                val (lastConf2, index) = eval(variable.indices.last(), lastConf1)
+                when (lastArray) {
+                    is UnboxedArrayT -> lastArray.set(index.toInt(), inputHead)
+                    is BoxedArrayT -> throw ExecutionException("cannot store primitive value in a reference array")
+                    else -> throw ExecutionException("cannot index primitive value")
                 }
-                assert(indices.size == 1)
-                array.value[indices.first()] = inputHead
-
-                // TODO evaluation order
-                Configuration(inputTail, curr.output + OutputItem.Prompt, curr.environment, curr.functions)
+                Configuration(
+                    inputTail,
+                    lastConf2.output + OutputItem.Prompt,
+                    lastConf2.environment,
+                    lastConf2.functions
+                )
             }
         }
 
@@ -211,6 +250,8 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
 
         "arrlen" -> arrlen(function, conf)
         "arrmake" -> arrmake(function, conf)
+
+        "Arrmake" -> Arrmake(function, conf)
 
         else -> {
             val definition = conf.functions[function.name]
@@ -300,7 +341,12 @@ fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, St
 fun arrlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(1, function)
     val (after1, array) = eval(function.args[0], conf)
-    val res = IntT(array.asUnboxedArrayT().value.size)
+    val size = when (array) {
+        is UnboxedArrayT -> array.size
+        is BoxedArrayT -> array.size
+        else -> throw ExecutionException("cannot cast a value of type ${array.type()} to array")
+    }
+    val res = IntT(size)
     return Pair(after1, res)
 }
 
@@ -310,6 +356,19 @@ fun arrmake(function: FunctionCall, conf: Configuration): Pair<Configuration, Un
     val (after2, value) = eval(function.args[1], after1)
     val array = Array(length.asIntT().toInt(), { value.asIntT().toInt() })
     val res = UnboxedArrayT(array)
+    return Pair(after2, res)
+}
+
+fun Arrmake(function: FunctionCall, conf: Configuration): Pair<Configuration, BoxedArrayT> {
+    checkArgsSize(2, function)
+    val (after1, length) = eval(function.args[0], conf)
+    val (after2, init) = eval(function.args[1], after1)
+    val array = Array<ReferenceT?>(length.asIntT().toInt(), { null })
+    val initializer = init.asBoxedArrayT()
+    for ((i, initItem) in initializer.value!!.withIndex()) {
+        array[i] = initItem
+    }
+    val res = BoxedArrayT(array)
     return Pair(after2, res)
 }
 
