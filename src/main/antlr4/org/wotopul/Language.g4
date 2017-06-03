@@ -38,10 +38,10 @@ stmt returns [Set<String> locals]
       { $locals = create_set(); }                           # skip
     | first=stmt ';' rest=stmt
       { $locals = join_sets($first.locals, $rest.locals); } # sequence
-    | ID ':=' expr
-      { $locals = create_set($ID.text); }                   # assignment
-    | ID ':=' READ '(' ')'
-      { $locals = create_set($ID.text); }                   # read
+    | variable ':=' expr
+      { $locals = create_set($variable.identifier); }       # assignment
+    | variable ':=' READ '(' ')'
+      { $locals = create_set($variable.identifier); }       # read
     | WRITE '(' expr ')'
       { $locals = create_set(); }                           # write
     | IF cond=expr THEN thenClause=stmt (elifs+=elif)*
@@ -82,12 +82,18 @@ expr
     | left=expr op=('==' | '!=')             right=expr # infix
     | left=expr op='&&'                      right=expr # infix
     | left=expr op=('||' | '!!')             right=expr # infix
-    | name=ID                                           # variable
+    | variable                                          # var
     | value=NUM                                         # const
     | function_                                         # function
+    | boxedArrayInitializer                             # boxedArray
+    | unboxedArrayInitializer                           # unboxedArray
     | CharLiteral                                       # charLiteral
     | StringLiteral                                     # stringLiteral
     | BooleanLiteral                                    # booleanLiteral
+    ;
+
+variable returns [String identifier]
+    : ID ( '[' expr ']' )* { $identifier = $ID.text; }
     ;
 
 function_
@@ -97,6 +103,18 @@ function_
 args
     : expr (',' expr)*
     |
+    ;
+
+unboxedArrayInitializer
+    : '[' arrayInitializerList? ']'
+    ;
+
+boxedArrayInitializer
+    : '{' arrayInitializerList? '}'
+    ;
+
+arrayInitializerList
+    : expr (',' expr)*
     ;
 
 // Lexer

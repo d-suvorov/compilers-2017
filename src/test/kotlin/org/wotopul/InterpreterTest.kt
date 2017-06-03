@@ -8,7 +8,8 @@ import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
 import org.wotopul.Expr.Const
 import org.wotopul.Expr.Variable
-import org.wotopul.Statement.*
+import org.wotopul.Statement.Skip
+import org.wotopul.Statement.Write
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
@@ -28,17 +29,17 @@ class InterpreterTest(val program: Program, val input: List<Int>, val output: Li
 
         @JvmStatic
         val WRITES_AND_READS = programOf(sequence(
-            Assignment("x", Const(1)),
+            assignment("x", Const(1)),
             Write(Variable("x")),
-            Assignment("x", Const(2)),
-            Assignment("y", Const(3)),
+            assignment("x", Const(2)),
+            assignment("y", Const(3)),
             Write(Variable("y")),
             Write(Variable("x")),
-            Read("y"),
-            Read("y"),
+            read("y"),
+            read("y"),
             Write(Variable("x")),
             Write(Variable("y")),
-            Read("y"),
+            read("y"),
             Write(Variable("y"))
         ))
 

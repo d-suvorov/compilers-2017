@@ -30,9 +30,9 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         Write(visit(ctx!!.expr()) as Expr)
 
     override fun visitAssignment(ctx: LanguageParser.AssignmentContext?): Assignment {
-        val name = ctx!!.ID().text
+        val variable = visit(ctx!!.variable) as Variable
         val expr = visit(ctx.expr()) as Expr
-        return Assignment(name, expr)
+        return Assignment(variable, expr)
     }
 
     override fun visitConst(ctx: LanguageParser.ConstContext?): Const {
@@ -42,7 +42,8 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
 
     override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {
         val name = ctx!!.ID().text
-        return Variable(name)
+        val indices = ctx.expr().map { visit(it) as Expr }.toTypedArray()
+        return Variable(name, indices)
     }
 
     override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode =
@@ -78,9 +79,18 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
         FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 
+    override fun visitBoxedArray(ctx: LanguageParser.BoxedArrayContext?): BoxedArrayInitializer =
+        BoxedArrayInitializer(visitArrayInitializerListImpl(ctx!!.boxedArrayInitializer().arrayInitializerList()))
+
+    override fun visitUnboxedArray(ctx: LanguageParser.UnboxedArrayContext?): UnboxedArrayInitializer =
+        UnboxedArrayInitializer(visitArrayInitializerListImpl(ctx!!.unboxedArrayInitializer().arrayInitializerList()))
+
+    private fun visitArrayInitializerListImpl(ctx: LanguageParser.ArrayInitializerListContext): Array<Expr> =
+        ctx.expr().map { visit(it) as Expr }.toTypedArray()
+
     override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
-        val name = ctx!!.ID().text
-        return Read(name)
+        val variable = visit(ctx!!.variable) as Variable
+        return Read(variable)
     }
 
     override fun visitIf(ctx: LanguageParser.IfContext?): If {
@@ -124,7 +134,7 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
     override fun visitFunctionStatement(ctx: LanguageParser.FunctionStatementContext?) =
         FunctionStatement(visitFunctionImpl(ctx!!.function_()))
 
-    fun visitFunctionImpl(function: LanguageParser.Function_Context): FunctionCall {
+    private fun visitFunctionImpl(function: LanguageParser.Function_Context): FunctionCall {
         val name = function.ID().text
         val args = function.args().expr().map { visit(it) as Expr }
         return FunctionCall(name, args)

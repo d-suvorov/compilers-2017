@@ -1,15 +1,30 @@
 package org.wotopul
 
 import org.wotopul.Expr.*
-import org.wotopul.Primitive.*
+import org.wotopul.VarValue.*
 
-fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Primitive> = when (expr) {
+fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when (expr) {
     is Const -> Pair(conf, IntT(expr.value))
 
     is Variable -> {
-        val value = (conf.environment[expr.name]
-            ?: throw ExecutionException("undefined variable: ${expr.name}"))
-        Pair(conf, value)
+        val variable: VarValue = conf.environment[expr.name]
+            ?: throw ExecutionException("undefined variable: ${expr.name}")
+        if (!expr.array) {
+            Pair(conf, variable)
+        } else {
+            // TODO cut'n'paste
+            val indices = Array(expr.indices.size, { 0 })
+            var curr = conf
+            for ((i, e) in expr.indices.withIndex()) {
+                val (next, item) = eval(e, curr)
+                indices[i] = item.toInt()
+                curr = next
+            }
+            assert(indices.size == 1)
+            val array = variable as UnboxedArrayT
+            val value = IntT(array.value[indices.first()])
+            Pair(curr, value)
+        }
     }
 
     is Binop -> {
@@ -22,9 +37,22 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, Primitive> = when
 
     is CharLiteral -> Pair(conf, CharT(expr.value))
     is StringLiteral -> Pair(conf, StringT(expr.value.toCharArray()))
+
+    is UnboxedArrayInitializer -> {
+        val arr = Array(expr.exprList.size, { 0 })
+        var curr = conf
+        for ((i, e) in expr.exprList.withIndex()) {
+            val (next, item) = eval(e, curr)
+            arr[i] = item.toInt()
+            curr = next
+        }
+        Pair(curr, UnboxedArrayT(arr))
+    }
+
+    is BoxedArrayInitializer -> TODO()
 }
 
-fun evalBinary(op: String, left: Primitive, right: Primitive): Primitive {
+fun evalBinary(op: String, left: VarValue, right: VarValue): VarValue {
     if (left is IntT && right is IntT) {
         return IntT(intBinopByString(op) (left.value, right.value))
     }

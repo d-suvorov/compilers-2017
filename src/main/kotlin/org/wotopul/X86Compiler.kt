@@ -252,7 +252,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Push -> {
                 val top = conf.push()
-                if (op.value is Primitive.StringT) {
+                if (op.value is VarValue.StringT) {
                     val label = "_internal_string_${stringLiteralsByLabel.size}"
                     stringLiteralsByLabel += label to String(op.value.value)
                     val opnd = Operand.StringLiteral(label)

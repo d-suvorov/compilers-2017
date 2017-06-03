@@ -5,7 +5,7 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.junit.Test
 import org.wotopul.Expr.Const
 import org.wotopul.Expr.Variable
-import org.wotopul.Statement.*
+import org.wotopul.Statement.Write
 
 class ParserTest {
     @Test
@@ -22,10 +22,10 @@ class ParserTest {
         val program = parser.program()
         val actual = AbstractTreeBuilder().visit(program)
         val expected = programOf(sequence(
-            Read("n"),
-            Assignment("n", Const(1) + Const(3) * Variable("n")),
-            Assignment("n", Const(1) + Const(3) * Variable("n")),
-            Assignment("n", Const(1) + Const(3) * Variable("n")),
+            read("n"),
+            assignment("n", Const(1) + Const(3) * Variable("n")),
+            assignment("n", Const(1) + Const(3) * Variable("n")),
+            assignment("n", Const(1) + Const(3) * Variable("n")),
             Write(Variable("n"))
         ))
         // TODO is ';' left or right associative?

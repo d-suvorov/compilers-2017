@@ -1,6 +1,6 @@
 package org.wotopul
 
-import org.wotopul.Primitive.*
+import org.wotopul.VarValue.*
 
 fun strlen(str: StringT) = IntT(str.value.size)
 

@@ -3,8 +3,8 @@ package org.wotopul
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
-import org.wotopul.Primitive.*
 import org.wotopul.StackOp.*
+import org.wotopul.VarValue.*
 import java.util.*
 
 sealed class StackOp {
@@ -14,7 +14,7 @@ sealed class StackOp {
     object Write : StackOp()
 
     object Pop : StackOp()
-    class Push(val value: Primitive) : StackOp()
+    class Push(val value: VarValue) : StackOp()
     class Load(val name: String) : StackOp()
     class Store(val name: String) : StackOp()
 
@@ -42,8 +42,8 @@ fun compile(program: Program): List<StackOp> {
         is Statement.Skip -> listOf(Nop)
         is Statement.Sequence -> compile(stmt.first) + compile(stmt.rest)
 
-        is Statement.Assignment -> compile(stmt.value) + Store(stmt.variable)
-        is Statement.Read -> listOf(Read, Store(stmt.variable))
+        is Statement.Assignment -> compile(stmt.value) + Store(stmt.variable.name)
+        is Statement.Read -> listOf(Read, Store(stmt.variable.name))
         is Statement.Write -> compile(stmt.value) + Write
 
         is Statement.If -> {
@@ -98,6 +98,9 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
 
     is Expr.CharLiteral -> listOf(Push(CharT(expr.value)))
     is Expr.StringLiteral -> listOf(Push(StringT(expr.value.toCharArray())))
+
+    is Expr.BoxedArrayInitializer -> TODO()
+    is Expr.UnboxedArrayInitializer -> TODO()
 }
 
 fun compile(function: FunctionCall): List<StackOp> {
@@ -111,12 +114,12 @@ fun compile(function: FunctionCall): List<StackOp> {
 class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
-    var stack: List<Primitive> = emptyList(),
-    val frames: MutableList<MutableMap<String, Primitive>> = mutableListOf(mutableMapOf())
+    var stack: List<VarValue> = emptyList(),
+    val frames: MutableList<MutableMap<String, VarValue>> = mutableListOf(mutableMapOf())
 )
     : Configuration(input, output, emptyMap())
 {
-    override val environment: MutableMap<String, Primitive>
+    override val environment: MutableMap<String, VarValue>
         get() = frames.last()
 
     fun enter() {
@@ -147,7 +150,7 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
     fun labelIndex(label: String) = labelTable[label]
         ?: throw ExecutionException("undefined label: $label")
 
-    fun popOrThrow(): Primitive {
+    fun popOrThrow(): VarValue {
         if (curr.stack.isEmpty())
             throw ExecutionException("empty stack")
         val top = curr.stack.last()

@@ -1,5 +1,7 @@
 package org.wotopul
 
+import org.wotopul.Expr.Variable
+
 open class AbstractNode
 
 class Program(
@@ -25,8 +27,8 @@ sealed class Statement : AbstractNode() {
     object Skip : Statement()
     class Sequence(val first: Statement, val rest: Statement) : Statement()
 
-    class Assignment(val variable: String, val value: Expr) : Statement()
-    class Read(val variable: String) : Statement()
+    class Assignment(val variable: Variable, val value: Expr) : Statement()
+    class Read(val variable: Variable) : Statement()
     class Write(val value: Expr) : Statement()
 
     class If(val condition: Expr, val thenClause: Statement, val elseClause: Statement) : Statement()
@@ -40,11 +42,17 @@ sealed class Statement : AbstractNode() {
 
 sealed class Expr : AbstractNode() {
     class Const(val value: Int) : Expr()
-    class Variable(val name: String) : Expr()
+    class Variable(val name: String, val indices: Array<Expr> = emptyArray()) : Expr() {
+        val array: Boolean = !indices.isEmpty()
+    }
+
     class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
 
     class CharLiteral(val value: Char) : Expr()
     class StringLiteral(val value: String) : Expr()
+
+    class UnboxedArrayInitializer(val exprList: Array<Expr>) : Expr()
+    class BoxedArrayInitializer(val exprList: Array<Expr>) : Expr()
 
     class FunctionExpr(val function: FunctionCall) : Expr()
 }

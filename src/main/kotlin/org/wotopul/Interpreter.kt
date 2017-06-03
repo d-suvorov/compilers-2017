@@ -1,24 +1,26 @@
 package org.wotopul
 
 import org.wotopul.Configuration.OutputItem
-import org.wotopul.Primitive.*
 import org.wotopul.Statement.*
+import org.wotopul.VarValue.*
 
-sealed class Primitive {
-    class IntT(val value: Int) : Primitive()
-    class CharT(val value: Char) : Primitive()
-    class StringT(val value: CharArray) : Primitive()
+sealed class VarValue {
+    class IntT(val value: Int) : VarValue()
+    class CharT(val value: Char) : VarValue()
+    class StringT(val value: CharArray) : VarValue()
+    class UnboxedArrayT(val value: Array<Int>) : VarValue()
 
     fun type(): String = when (this) {
         is IntT -> "int"
         is CharT -> "char"
         is StringT -> "string"
+        is UnboxedArrayT -> "unboxed array"
     }
 
     fun toInt(): Int = when (this) {
         is IntT -> value
         is CharT -> value.toInt()
-        is StringT -> throw ExecutionException(
+        else -> throw ExecutionException(
             "conversions of ${type()} to int are not allowed")
     }
 
@@ -42,6 +44,11 @@ sealed class Primitive {
         if (this is StringT) this
         else throw ExecutionException(
             "conversions of ${type()} to string are not allowed")
+
+    fun asUnboxedArrayT(): UnboxedArrayT =
+        if (this is UnboxedArrayT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to unboxed array are not allowed")
 }
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
@@ -50,7 +57,7 @@ fun interpret(program: Program, input: List<Int>): List<OutputItem> =
 open class Configuration(
     open val input: List<Int>,
     open val output: List<OutputItem> = emptyList(),
-    open val environment: Map<String, Primitive> = emptyMap(),
+    open val environment: Map<String, VarValue> = emptyMap(),
     val functions: Map<String, FunctionDefinition> = emptyMap())
 {
     sealed class OutputItem {
@@ -76,7 +83,7 @@ open class Configuration(
     constructor(input: List<Int>, program: Program)
         : this(input, functions = program.functions.associateBy({ it.name }))
 
-    fun updateEnvironment(newEnv: Map<String, Primitive>) =
+    fun updateEnvironment(newEnv: Map<String, VarValue>) =
         Configuration(this.input, this.output, newEnv, this.functions)
 
     fun returned() = returnValueVarName in environment
@@ -84,7 +91,7 @@ open class Configuration(
     fun returnValue() = environment[returnValueVarName]
         ?: throw ExecutionException("return statement expected")
 
-    fun updateReturnValue(value: Primitive) =
+    fun updateReturnValue(value: VarValue) =
         updateEnvironment(environment + (returnValueVarName to value))
 
     companion object { val returnValueVarName = "return" }
@@ -97,9 +104,28 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
 
         is Assignment -> {
             val (afterCond, value) = eval(stmt.value, start)
-            val name = stmt.variable
-            val updated = afterCond.environment + (name to value)
-            Configuration(afterCond.input, afterCond.output, updated, afterCond.functions)
+            val variable = stmt.variable
+            val name = variable.name
+            if (!variable.array) {
+                val updated = afterCond.environment + (name to value)
+                Configuration(afterCond.input, afterCond.output, updated, afterCond.functions)
+            } else {
+                val array = (afterCond.environment[name]
+                    ?: throw ExecutionException("undefined variable: $name")) as UnboxedArrayT
+
+                // TODO cut'n'paste
+                val indices = Array(variable.indices.size, { 0 })
+                var curr = afterCond
+                for ((i, e) in variable.indices.withIndex()) {
+                    val (next, item) = eval(e, curr)
+                    indices[i] = item.toInt()
+                    curr = next
+                }
+                assert(indices.size == 1)
+                array.value[indices.first()] = value.toInt()
+
+                curr
+            }
         }
 
         is Read -> {
@@ -107,9 +133,31 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
                 throw ExecutionException("input is empty")
             val inputHead = start.input.first()
             val inputTail = start.input.subList(1, start.input.size)
-            val name = stmt.variable
-            val updated = start.environment + (name to IntT(inputHead))
-            Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
+
+            // TODO cut'n'paste
+            val variable = stmt.variable
+            val name = variable.name
+            if (!variable.array) {
+                val updated = start.environment + (name to IntT(inputHead))
+                Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
+            } else {
+                val array = (start.environment[name]
+                    ?: throw ExecutionException("undefined variable: $name")) as UnboxedArrayT
+
+                // TODO cut'n'paste
+                val indices = Array(variable.indices.size, { 0 })
+                var curr = start
+                for ((i, e) in variable.indices.withIndex()) {
+                    val (next, item) = eval(e, curr)
+                    indices[i] = item.toInt()
+                    curr = next
+                }
+                assert(indices.size == 1)
+                array.value[indices.first()] = inputHead
+
+                // TODO evaluation order
+                Configuration(inputTail, curr.output + OutputItem.Prompt, curr.environment, curr.functions)
+            }
         }
 
         is Write -> {
@@ -150,7 +198,7 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
 fun evalSequentially(first: Statement, second: Statement, start: Configuration) =
     eval(second, eval(first, start))
 
-fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, Primitive> =
+fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuration, VarValue> =
     when(function.name) {
         "strlen" -> strlen(function, conf)
         "strget" -> strget(function, conf)
@@ -161,13 +209,16 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "strcmp" -> strcmp(function, conf)
         "strmake" -> strmake(function, conf)
 
+        "arrlen" -> arrlen(function, conf)
+        "arrmake" -> arrmake(function, conf)
+
         else -> {
             val definition = conf.functions[function.name]
                 ?: throw ExecutionException("undefined function: ${function.name}")
             checkArgsSize(definition.params.size, function)
 
             var curr: Configuration = conf
-            val argsEnv = HashMap<String, Primitive>()
+            val argsEnv = HashMap<String, VarValue>()
             for (i in function.args.indices) {
                 val paramName = definition.params[i]
                 val (next, arg) = eval(function.args[i], curr)
@@ -243,6 +294,22 @@ fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, St
     val (after1, length) = eval(function.args[0], conf)
     val (after2, chr) = eval(function.args[1], after1)
     val res = strmake(length.asIntT(), chr.asCharT())
+    return Pair(after2, res)
+}
+
+fun arrlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
+    checkArgsSize(1, function)
+    val (after1, array) = eval(function.args[0], conf)
+    val res = IntT(array.asUnboxedArrayT().value.size)
+    return Pair(after1, res)
+}
+
+fun arrmake(function: FunctionCall, conf: Configuration): Pair<Configuration, UnboxedArrayT> {
+    checkArgsSize(2, function)
+    val (after1, length) = eval(function.args[0], conf)
+    val (after2, value) = eval(function.args[1], after1)
+    val array = Array(length.asIntT().toInt(), { value.asIntT().toInt() })
+    val res = UnboxedArrayT(array)
     return Pair(after2, res)
 }
 

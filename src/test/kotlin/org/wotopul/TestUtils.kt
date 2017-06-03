@@ -19,3 +19,6 @@ operator fun Expr.plus(rhs: Expr) = Expr.Binop("+", this, rhs)
 operator fun Expr.minus(rhs: Expr) = Expr.Binop("-", this, rhs)
 operator fun Expr.times(rhs: Expr) = Expr.Binop("*", this, rhs)
 operator fun Expr.div(rhs: Expr) = Expr.Binop("/", this, rhs)
+
+fun read(name: String) = Statement.Read(Expr.Variable(name))
+fun assignment(name: String, expr: Expr) = Statement.Assignment(Expr.Variable(name), expr)
