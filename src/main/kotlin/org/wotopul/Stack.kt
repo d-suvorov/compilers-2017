@@ -3,9 +3,13 @@ package org.wotopul
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
+import org.wotopul.Expr.Variable
 import org.wotopul.StackOp.*
 import org.wotopul.VarValue.*
 import java.util.*
+
+var freeNum = 0
+fun freeVariable() = "_v${freeNum++}"
 
 sealed class StackOp {
     object Nop : StackOp()
@@ -15,8 +19,14 @@ sealed class StackOp {
 
     object Pop : StackOp()
     class Push(val value: VarValue) : StackOp()
+
     class Load(val name: String) : StackOp()
     class Store(val name: String) : StackOp()
+    object LoadArr : StackOp()
+    object StoreArr : StackOp()
+
+    object MakeUnboxedArray : StackOp()
+    object MakeBoxedArray : StackOp()
 
     class Binop(val op: String) : StackOp()
 
@@ -42,8 +52,48 @@ fun compile(program: Program): List<StackOp> {
         is Statement.Skip -> listOf(Nop)
         is Statement.Sequence -> compile(stmt.first) + compile(stmt.rest)
 
-        is Statement.Assignment -> compile(stmt.value) + Store(stmt.variable.name)
-        is Statement.Read -> listOf(Read, Store(stmt.variable.name))
+        is Statement.Assignment -> {
+            val variable = stmt.variable
+            if (!variable.array) {
+                compile(stmt.value) + Store(variable.name)
+            } else {
+                val res = mutableListOf<StackOp>()
+                res += compile(variable.indices.last())
+                res += compile(stmt.value)
+                for (i in variable.indices.size - 2 downTo 0) {
+                    val e = variable.indices[i]
+                    res += compile(e)
+                }
+                res += Load(variable.name)
+                for (i in 0 until variable.indices.size - 1) {
+                    res += LoadArr
+                }
+                res += StoreArr
+                res
+            }
+        }
+
+        is Statement.Read -> {
+            val variable = stmt.variable
+            if (!variable.array) {
+                listOf(Read, Store(stmt.variable.name))
+            } else {
+                val res = mutableListOf<StackOp>()
+                res += compile(variable.indices.last())
+                res += Read
+                for (i in variable.indices.size - 2 downTo 0) {
+                    val e = variable.indices[i]
+                    res += compile(e)
+                }
+                res += Load(variable.name)
+                for (i in 0 until variable.indices.size - 1) {
+                    res += LoadArr
+                }
+                res += StoreArr
+                res
+            }
+        }
+
         is Statement.Write -> compile(stmt.value) + Write
 
         is Statement.If -> {
@@ -92,15 +142,48 @@ fun compile(program: Program): List<StackOp> {
 
 fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Const -> listOf(Push(IntT(expr.value)))
-    is Expr.Variable -> listOf(Load(expr.name))
+
+    is Variable -> {
+        if (!expr.array) {
+            listOf(Load(expr.name))
+        } else {
+            val res = mutableListOf<StackOp>()
+            for (idxExpr in expr.indices.reversedArray()) {
+                res += compile(idxExpr)
+            }
+            res += Load(expr.name)
+            for (i in 0 until expr.indices.size) {
+                res += LoadArr
+            }
+            res
+        }
+    }
+
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
     is Expr.FunctionExpr -> compile(expr.function)
 
     is Expr.CharLiteral -> listOf(Push(CharT(expr.value)))
     is Expr.StringLiteral -> listOf(Push(StringT(expr.value.toCharArray())))
 
-    is Expr.BoxedArrayInitializer -> TODO()
-    is Expr.UnboxedArrayInitializer -> TODO()
+    is Expr.UnboxedArrayInitializer -> {
+        val res = mutableListOf<StackOp>()
+        for (e in expr.exprList.reversedArray()) {
+            res += compile(e)
+        }
+        res += Push(IntT(expr.exprList.size))
+        res += MakeUnboxedArray
+        res
+    }
+
+    is Expr.BoxedArrayInitializer -> {
+        val res = mutableListOf<StackOp>()
+        for (e in expr.exprList.reversedArray()) {
+            res += compile(e)
+        }
+        res += Push(IntT(expr.exprList.size))
+        res += MakeBoxedArray
+        res
+    }
 }
 
 fun compile(function: FunctionCall): List<StackOp> {
@@ -114,12 +197,12 @@ fun compile(function: FunctionCall): List<StackOp> {
 class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
-    var stack: List<VarValue> = emptyList(),
-    val frames: MutableList<MutableMap<String, VarValue>> = mutableListOf(mutableMapOf())
+    var stack: List<VarValue?> = emptyList(),
+    val frames: MutableList<MutableMap<String, VarValue?>> = mutableListOf(mutableMapOf())
 )
     : Configuration(input, output, emptyMap())
 {
-    override val environment: MutableMap<String, VarValue>
+    val stackEnvironment: MutableMap<String, VarValue?>
         get() = frames.last()
 
     fun enter() {
@@ -150,12 +233,16 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
     fun labelIndex(label: String) = labelTable[label]
         ?: throw ExecutionException("undefined label: $label")
 
-    fun popOrThrow(): VarValue {
+    fun popOrThrowNullable(): VarValue? {
         if (curr.stack.isEmpty())
             throw ExecutionException("empty stack")
         val top = curr.stack.last()
         curr.stack = curr.stack.subList(0, curr.stack.size - 1)
         return top
+    }
+
+    fun popOrThrow(): VarValue {
+        return popOrThrowNullable()!!
     }
 
     tailrec fun run(ip: Int) {
@@ -178,17 +265,57 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
 
             is Write -> curr.output += Number(popOrThrow().toInt())
 
-            is Pop -> popOrThrow()
+            is Pop -> popOrThrowNullable()
 
             is Push -> curr.stack += op.value
 
             is Load -> {
-                val value = curr.environment[op.name]
-                    ?: throw ExecutionException("undefined variable: ${op.name}")
+                val value = curr.stackEnvironment[op.name]
+                    ?: throw ExecutionException("undefined name: ${op.name}")
                 curr.stack += value
             }
 
-            is Store -> curr.environment += (op.name to popOrThrow())
+            is Store -> curr.stackEnvironment += (op.name to popOrThrow())
+
+            is LoadArr -> {
+                val array = popOrThrow()
+                val index = popOrThrow()
+                val value = when (array) {
+                    is UnboxedArrayT -> IntT(array.get(index.asIntT().toInt()))
+                    is BoxedArrayT -> array.get(index.asIntT().toInt()) as VarValue?
+                    else -> throw AssertionError("LoadArr must be used with array")
+                }
+                curr.stack += value
+            }
+
+            is StoreArr -> {
+                val array = popOrThrow()
+                val value = popOrThrow()
+                val index = popOrThrow()
+                when (array) {
+                    is UnboxedArrayT -> array.set(index.asIntT().toInt(), value.asIntT().toInt())
+                    is BoxedArrayT -> array.set(index.asIntT().toInt(), value as ReferenceT)
+                    else -> throw AssertionError("LoadArr must be used with array")
+                }
+            }
+
+            is MakeUnboxedArray -> {
+                val size = popOrThrow().asIntT().toInt()
+                val array = Array(size, { 0 })
+                for (i in 0 until size) {
+                    array[i] = popOrThrow().asIntT().toInt()
+                }
+                curr.stack += UnboxedArrayT(array)
+            }
+
+            is MakeBoxedArray -> {
+                val size = popOrThrow().asIntT().toInt()
+                val array = Array<ReferenceT?>(size, { null })
+                for (i in 0 until size) {
+                    array[i] = popOrThrowNullable() as ReferenceT?
+                }
+                curr.stack += BoxedArrayT(array)
+            }
 
             is Binop -> {
                 val rhs = popOrThrow()
@@ -247,6 +374,22 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                         val chr = popOrThrow()
                         curr.stack += strmake(length.asIntT(), chr.asCharT())
                     }
+
+                    "arrlen" -> {
+                        val array = popOrThrow()
+                        curr.stack += arrlen(array)
+                    }
+                    "arrmake" -> {
+                        val length = popOrThrow()
+                        val value = popOrThrow()
+                        curr.stack += arrmake(length.asIntT(), value.asIntT())
+                    }
+                    "Arrmake" -> {
+                        val length = popOrThrow()
+                        val initializer = popOrThrow()
+                        curr.stack += Arrmake(length.asIntT(), initializer.asBoxedArrayT())
+                    }
+
                     else -> {
                         curr.stack += IntT(ip) // treat instruction pointer as an integer
                         next = labelIndex(op.name)
@@ -258,7 +401,7 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
                 val returnAddress = popOrThrow()
                 curr.enter()
                 for (param in op.params) {
-                    curr.environment += (param to popOrThrow())
+                    curr.stackEnvironment += (param to popOrThrow())
                 }
                 curr.stack += returnAddress
             }

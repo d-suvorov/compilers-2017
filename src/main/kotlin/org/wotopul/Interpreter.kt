@@ -341,12 +341,7 @@ fun strmake(function: FunctionCall, conf: Configuration): Pair<Configuration, St
 fun arrlen(function: FunctionCall, conf: Configuration): Pair<Configuration, IntT> {
     checkArgsSize(1, function)
     val (after1, array) = eval(function.args[0], conf)
-    val size = when (array) {
-        is UnboxedArrayT -> array.size
-        is BoxedArrayT -> array.size
-        else -> throw ExecutionException("cannot cast a value of type ${array.type()} to array")
-    }
-    val res = IntT(size)
+    val res = arrlen(array)
     return Pair(after1, res)
 }
 
@@ -354,8 +349,7 @@ fun arrmake(function: FunctionCall, conf: Configuration): Pair<Configuration, Un
     checkArgsSize(2, function)
     val (after1, length) = eval(function.args[0], conf)
     val (after2, value) = eval(function.args[1], after1)
-    val array = Array(length.asIntT().toInt(), { value.asIntT().toInt() })
-    val res = UnboxedArrayT(array)
+    val res = arrmake(length.asIntT(), value.asIntT())
     return Pair(after2, res)
 }
 
@@ -363,12 +357,7 @@ fun Arrmake(function: FunctionCall, conf: Configuration): Pair<Configuration, Bo
     checkArgsSize(2, function)
     val (after1, length) = eval(function.args[0], conf)
     val (after2, init) = eval(function.args[1], after1)
-    val array = Array<ReferenceT?>(length.asIntT().toInt(), { null })
-    val initializer = init.asBoxedArrayT()
-    for ((i, initItem) in initializer.value!!.withIndex()) {
-        array[i] = initItem
-    }
-    val res = BoxedArrayT(array)
+    val res = Arrmake(length.asIntT(), init.asBoxedArrayT())
     return Pair(after2, res)
 }
 

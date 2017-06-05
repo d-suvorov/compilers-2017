@@ -5,7 +5,7 @@ import org.wotopul.VarValue.*
 
 fun evalArray(conf: Configuration, variable: Variable, depth: Int): Pair<Configuration, VarValue> {
     val array: VarValue = conf.environment[variable.name]
-        ?: throw ExecutionException("undefined variable: ${variable.name}")
+        ?: throw ExecutionException("undefined name: ${variable.name}")
 
     if (depth == 0) {
         return Pair(conf, array)
