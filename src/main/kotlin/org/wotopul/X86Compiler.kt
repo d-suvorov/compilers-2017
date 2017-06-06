@@ -390,17 +390,47 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     out += (Pop(Register(i)))
                 conf.pop()
                 conf.pop()
-                conf.pop()
+                // leave array on stack
                 // ignore return value
             }
 
-            is StackOp.MakeUnboxedArray -> {
-                TODO()
+            is StackOp.MakeUnboxedArray, StackOp.MakeBoxedArray -> {
+                for (i in 0..eaxIdx - 1)
+                    out += (Push(Register(i)))
+                // Push arguments
+                out += (Push(conf.top()))
+                // Call function
+                out += (Call("_arrmake_impl"))
+                // Pop arguments
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += (Pop(Register(i)))
+                // Pop length from symbol stack
+                conf.pop()
+                // Put return value on a symbol stack
+                val top = conf.push()
+                out += Move(eax, top)
             }
 
-            is StackOp.MakeBoxedArray -> {
-                TODO()
-            }
+            /*is StackOp.MakeBoxedArray -> {
+                for (i in 0..eaxIdx - 1)
+                    out += (Push(Register(i)))
+                // Push arguments
+                out += (Push(conf.top()))
+                // Call function
+                out += (Call("_arrmake_impl"))
+                // Pop arguments
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += (Pop(Register(i)))
+                // Pop length from symbol stack
+                conf.pop()
+                // Put return value on a symbol stack
+                val top = conf.push()
+                out += Move(eax, top)
+            }*/
 
             is StackOp.Binop -> {
                 val src = conf.pop()
@@ -630,7 +660,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
     fun compileCurrentFunctionBody() {
         openStackFrame(conf!!)
-        initializeLocals(conf!!)
+        // initializeLocals(conf!!) -- overwrites params
         body.forEach { result.append(it) }
         body.clear()
     }
