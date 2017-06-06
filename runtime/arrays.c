@@ -1,52 +1,38 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-struct array {
-    size_t length;
-    void * data;
-};
-
-struct array * _create_array() {
-    struct array * res = (struct array *) malloc(sizeof(struct array));
-    return res;
+int32_t _arrget(const int32_t * arr, size_t idx) {
+    return arr[idx + 1];
 }
 
-int32_t _arrget(const struct array * arr, size_t idx) {
-    int32_t * flat_data = (int32_t *) arr->data;
-    return flat_data[idx];
-}
-
-int32_t _arrset(struct array * arr, int32_t value, size_t idx) {
-    int32_t * flat_data = (int32_t *) arr->data;
-    flat_data[idx] = value;
+int32_t _arrset(size_t idx, int32_t value, int32_t * arr) {
+    arr[idx + 1] = value;
     return 0;
 }
 
-int _arrlen(const struct array * arr) {
-    return arr->length;
+int _arrlen(const int32_t * arr) {
+    return arr[0];
 }
 
-struct array * _arrmake(size_t length, int32_t value) {
-    struct array * res = _create_array();
-    res->length = length;
-    int32_t * flat_data = (int32_t *) malloc(length * sizeof(int32_t));
-    for (size_t i = 0; i < length; i++) {
-        flat_data[i] = value;
-    }
-    res->data = (void *) flat_data;
+int32_t * _arrmake_impl(size_t length) {
+    int32_t * res = (int32_t *) malloc((length + 1) * sizeof(int32_t));
+    res[0] = length;
     return res;
 }
 
-struct array * _Arrmake(size_t length, const struct array * init) {
-    struct array * res = _create_array();
-    res->length = length;
-    int32_t * flat_data = (int32_t *) malloc(length * sizeof(int32_t));
-    res->data = (void *) flat_data;
-
-    int32_t * init_flat_data = (int32_t *) init->data;
-    for (size_t i = 0; i < init->length; i++) {
-        flat_data[i] = init_flat_data[i];
+int32_t * _arrmake(size_t length, int32_t value) {
+    int32_t * res = _arrmake_impl(length);
+    for (size_t i = 1; i < length + 1; i++) {
+        res[i + 1] = value;
     }
+    return res;
+}
 
+int32_t * _Arrmake(size_t length, const int32_t * init) {
+    int32_t * res = _arrmake_impl(length);
+    size_t init_length = init[0];
+    for (size_t i = 0; i < init_length; i++) {
+        res[i + 1] = init[i + 1];
+    }
     return res;
 }
