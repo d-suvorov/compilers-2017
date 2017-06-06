@@ -23,3 +23,15 @@ fun Arrmake(length: IntT, initializer: BoxedArrayT): BoxedArrayT {
     }
     return BoxedArrayT(array)
 }
+
+private val arrayIntrinsicNArgs = mapOf(
+    "arrlen" to 1,
+    "arrmake" to 2,
+    "Arrmake" to 2
+)
+
+fun arrayIntrinsics() = arrayIntrinsicNArgs.keys
+
+fun arrayIntrinsicNArgs(name: String): Int = arrayIntrinsicNArgs[name]!!
+
+fun arrayIntrinsicWrapperName(name: String) = "_${name}"

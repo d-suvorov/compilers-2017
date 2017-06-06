@@ -282,7 +282,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
             is StackOp.Pop -> {
                 val top = conf.pop()
 
-                // Call `_decrease_count`
+                /*// Call `_decrease_count`
                 // TODO save registers only when it is necessary and save only necessary amount of registers
                 // Save registers
                 for (i in 0 .. eaxIdx - 1)
@@ -295,7 +295,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 out += Pop(edx) // actual operand doesn't matter because the value is not used
                 // Restore registers
                 for (i in eaxIdx - 1 downTo 0)
-                    out += Pop(Register(i))
+                    out += Pop(Register(i))*/
             }
 
             is StackOp.Load -> {
@@ -315,7 +315,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val slot = conf.variableSlot(op.name)
                 assert(top == Register(0))
 
-                if (op.name[0].isUpperCase()) {
+                /*if (op.name[0].isUpperCase()) {
                     // Call `_decrease_count`
                     // TODO save registers only when it is necessary and save only necessary amount of registers
                     // Save registers
@@ -330,11 +330,11 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     // Restore registers
                     for (i in eaxIdx - 1 downTo 0)
                         out += Pop(Register(i))
-                }
+                }*/
 
                 out += Move(top, slot)
 
-                if (op.name[0].isUpperCase()) {
+                /*if (op.name[0].isUpperCase()) {
                     // Call `_increase_count`
                     // TODO save registers only when it is necessary and save only necessary amount of registers
                     // Save registers
@@ -349,7 +349,49 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     // Restore registers
                     for (i in eaxIdx - 1 downTo 0)
                         out += Pop(Register(i))
-                }
+                }*/
+            }
+
+            is StackOp.LoadArr -> {
+                for (i in 0..eaxIdx - 1)
+                    out += (Push(Register(i)))
+                // Push arguments
+                out += (Push(conf.get(1)))
+                out += (Push(conf.get(0)))
+                // Call function
+                out += (Call("_arrget"))
+                // Pop arguments
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += (Pop(Register(i)))
+                conf.pop()
+                conf.pop()
+                val top = conf.push()
+                out += Move(eax, top)
+            }
+
+            is StackOp.StoreArr -> {
+                for (i in 0..eaxIdx - 1)
+                    out += (Push(Register(i)))
+                // Push arguments
+                out += (Push(conf.get(2)))
+                out += (Push(conf.get(1)))
+                out += (Push(conf.get(0)))
+                // Call function
+                out += (Call("_arrset"))
+                // Pop arguments
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
+                // Restore registers
+                for (i in eaxIdx - 1 downTo 0)
+                    out += (Pop(Register(i)))
+                conf.pop()
+                conf.pop()
+                conf.pop()
+                // ignore return value
             }
 
             is StackOp.Binop -> {
@@ -470,6 +512,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 // TODO throw an exception if function is undefined
                 val nArgs = if (op.name in stringIntrinsics())
                     stringIntrinsicNArgs(op.name)
+                else if (op.name in arrayIntrinsics())
+                    arrayIntrinsicNArgs(op.name)
                 else
                     ast.functionDefinitionByName(op.name)!!.params.size
                 for (offset in nArgs - 1 downTo 0)
@@ -478,6 +522,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 // Call function
                 val name = if (op.name in stringIntrinsics())
                     stringIntrinsicWrapperName(op.name)
+                else if (op.name in arrayIntrinsics())
+                    arrayIntrinsicWrapperName(op.name)
                 else op.name
                 out += Call(name)
 
