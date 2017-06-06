@@ -58,8 +58,6 @@ fun compile(program: Program): List<StackOp> {
                 compile(stmt.value) + Store(variable.name)
             } else {
                 val res = mutableListOf<StackOp>()
-                res += compile(variable.indices.last())
-                res += compile(stmt.value)
                 for (i in variable.indices.size - 2 downTo 0) {
                     val e = variable.indices[i]
                     res += compile(e)
@@ -68,7 +66,10 @@ fun compile(program: Program): List<StackOp> {
                 for (i in 0 until variable.indices.size - 1) {
                     res += LoadArr
                 }
+                res += compile(stmt.value)
+                res += compile(variable.indices.last())
                 res += StoreArr
+                res += Pop
                 res
             }
         }
@@ -79,8 +80,6 @@ fun compile(program: Program): List<StackOp> {
                 listOf(Read, Store(stmt.variable.name))
             } else {
                 val res = mutableListOf<StackOp>()
-                res += compile(variable.indices.last())
-                res += Read
                 for (i in variable.indices.size - 2 downTo 0) {
                     val e = variable.indices[i]
                     res += compile(e)
@@ -89,7 +88,10 @@ fun compile(program: Program): List<StackOp> {
                 for (i in 0 until variable.indices.size - 1) {
                     res += LoadArr
                 }
+                res += Read
+                res += compile(variable.indices.last())
                 res += StoreArr
+                res += Pop
                 res
             }
         }
@@ -167,21 +169,25 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
 
     is Expr.UnboxedArrayInitializer -> {
         val res = mutableListOf<StackOp>()
-        for (e in expr.exprList.reversedArray()) {
-            res += compile(e)
-        }
         res += Push(IntT(expr.exprList.size))
         res += MakeUnboxedArray
+        for ((i, e) in expr.exprList.withIndex()) {
+            res += compile(e)
+            res += Push(IntT(i))
+            res += StoreArr
+        }
         res
     }
 
     is Expr.BoxedArrayInitializer -> {
         val res = mutableListOf<StackOp>()
-        for (e in expr.exprList.reversedArray()) {
-            res += compile(e)
-        }
         res += Push(IntT(expr.exprList.size))
         res += MakeBoxedArray
+        for ((i, e) in expr.exprList.withIndex()) {
+            res += compile(e)
+            res += Push(IntT(i))
+            res += StoreArr
+        }
         res
     }
 }
@@ -245,6 +251,12 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
         return popOrThrowNullable()!!
     }
 
+    fun topOrThrow(): VarValue {
+        if (curr.stack.isEmpty())
+            throw ExecutionException("empty stack")
+        return curr.stack.last()!!
+    }
+
     tailrec fun run(ip: Int) {
         if (ip == program.size) // terminate, it works for empty programs too
             return
@@ -289,9 +301,9 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             }
 
             is StoreArr -> {
-                val array = popOrThrow()
-                val value = popOrThrow()
                 val index = popOrThrow()
+                val value = popOrThrow()
+                val array = topOrThrow()
                 when (array) {
                     is UnboxedArrayT -> array.set(index.asIntT().toInt(), value.asIntT().toInt())
                     is BoxedArrayT -> array.set(index.asIntT().toInt(), value as ReferenceT)
@@ -302,18 +314,12 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             is MakeUnboxedArray -> {
                 val size = popOrThrow().asIntT().toInt()
                 val array = Array(size, { 0 })
-                for (i in 0 until size) {
-                    array[i] = popOrThrow().asIntT().toInt()
-                }
                 curr.stack += UnboxedArrayT(array)
             }
 
             is MakeBoxedArray -> {
                 val size = popOrThrow().asIntT().toInt()
                 val array = Array<ReferenceT?>(size, { null })
-                for (i in 0 until size) {
-                    array[i] = popOrThrowNullable() as ReferenceT?
-                }
                 curr.stack += BoxedArrayT(array)
             }
 

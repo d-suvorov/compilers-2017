@@ -394,6 +394,14 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 // ignore return value
             }
 
+            is StackOp.MakeUnboxedArray -> {
+                TODO()
+            }
+
+            is StackOp.MakeBoxedArray -> {
+                TODO()
+            }
+
             is StackOp.Binop -> {
                 val src = conf.pop()
                 val dst = conf.top()
