@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "counting_pointer.h"
+#include "gc.h"
 
 /* Take these from C standard library */
 size_t strlen(const char * str);

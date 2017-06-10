@@ -1,5 +1,9 @@
-#ifndef COUNTING_POINTER_H
-#define COUNTING_POINTER_H
+#ifndef GC_H
+#define GC_H
+
+void mark_ptr(void ** ptr);
+void unmark_ptr(void ** ptr);
+void assert_marked(void ** ptr);
 
 struct count_ptr;
 
