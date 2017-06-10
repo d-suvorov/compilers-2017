@@ -36,14 +36,17 @@ sealed class X86Instr {
                     throw AssertionError("bad register index: $idx")
             }
         }
-        class Literal(val value: Int) : Operand()
+        class Literal(val value: Int, val marked: Boolean = true) : Operand()
         class StringLiteral(val label: String) : Operand()
         class Variable(val name: String) : Operand()
         class Stack(val offset: Int) : Operand()
 
         override fun toString(): String = when (this) {
+            is Literal -> {
+                // "signed" left shift sets LSB to 0 marking value as primitive
+                "\$${if (marked) value * 2 else value}"
+            }
             is Register -> registers[idx]
-            is Literal -> "\$$value"
             is StringLiteral -> "\$$label"
             is Variable -> name
             is Stack -> "${-offset * wordSize}(%ebp)"
@@ -72,6 +75,8 @@ sealed class X86Instr {
     class SetCC(val op: String, val dst: String) : X86Instr()
 
     object Cltd : X86Instr()
+
+    class Sar(val opnd: Operand, val count: Operand) : X86Instr()
 
     override fun toString(): String {
         val str = when (this) {
@@ -132,6 +137,8 @@ sealed class X86Instr {
             }
 
             is Cltd -> "cltd"
+
+            is Sar -> "sarl\t$count,\t$opnd"
         }
         val indent = if (this is Label) "" else "\t"
         return "$indent$str\n"
@@ -236,6 +243,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 assert(top == Register(0))
                 out += listOf(
                     Call("read"),
+                    // "signed" left shift sets LSB to 0 marking value as primitive
+                    Binop("*", Operand.Literal(2, marked = false), eax),
                     Move(eax, top)
                 )
             }
@@ -244,6 +253,8 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val top = conf.pop()
                 assert(top == Register(0))
                 out += listOf(
+                    // convert from special representation with marked LSB
+                    Sar(top, Operand.Literal(1, marked = false)),
                     Push(top),
                     Call("write"),
                     Pop(top)
@@ -436,20 +447,34 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val src = conf.pop()
                 val dst = conf.top()
 
-                fun compileBinary(op: String) {
+                fun compileBinaryImpl(op: String, opnd1: Operand) {
                     if (dst is Register) {
-                        out += Binop(op, src, dst)
+                        out += Binop(op, opnd1, dst)
                     } else {
                         out += listOf(
                             Move(dst, edx),
-                            Binop(op, src, edx),
+                            Binop(op, opnd1, edx),
                             Move(edx, dst)
                         )
                     }
                 }
 
+                fun compileBinary(op: String) {
+                    compileBinaryImpl(op, src)
+                }
+
+                fun convertDstToMarkedPrimitive() {
+                    compileBinaryImpl("*", Operand.Literal(2, marked = false))
+                }
+
                 when (op.op) {
-                    "+", "-", "*" -> compileBinary(op.op)
+                    "+", "-" -> compileBinary(op.op)
+
+                    "*" -> {
+                        compileBinary(op.op)
+                        // balance left shift added by multiplication
+                        out += Sar(dst, Operand.Literal(1, marked = false))
+                    }
 
                     "/", "%" -> {
                         out += listOf(
@@ -458,6 +483,10 @@ fun compile(program: List<StackOp>, ast: Program): String {
                             Div(src),
                             Move(if (op.op == "/") eax else edx, dst)
                         )
+                        if (op.op == "/") {
+                            // balance right shift added by division
+                            convertDstToMarkedPrimitive()
+                        }
                     }
 
                     "&&" -> {
@@ -484,6 +513,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                             Binop16("xor", "%ah", "%ah"),
                             Move(eax, dst)
                         )
+                        convertDstToMarkedPrimitive()
                     }
 
                     "||" -> {
@@ -493,6 +523,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                             SetCC("!=", "%al"),
                             Move(eax, dst)
                         )
+                        convertDstToMarkedPrimitive()
                     }
 
                     "<", "<=", ">", ">=", "==", "!=" -> {
@@ -502,6 +533,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                             SetCC(op.op, "%al"),
                             Move(eax, dst)
                         )
+                        convertDstToMarkedPrimitive()
                     }
                 }
             }
