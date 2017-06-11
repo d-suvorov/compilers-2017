@@ -366,7 +366,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 out += (Push(conf.get(1)))
                 out += (Push(conf.get(0)))
                 // Call function
-                out += (Call("_arrget"))
+                out += (Call("_arrget_wrapper"))
                 // Pop arguments
                 out += (Pop(edx)) // actual operand doesn't matter because the value is not used
                 out += (Pop(edx)) // actual operand doesn't matter because the value is not used
@@ -387,7 +387,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 out += (Push(conf.get(1)))
                 out += (Push(conf.get(0)))
                 // Call function
-                out += (Call("_arrset"))
+                out += (Call("_arrset_wrapper"))
                 // Pop arguments
                 out += (Pop(edx)) // actual operand doesn't matter because the value is not used
                 out += (Pop(edx)) // actual operand doesn't matter because the value is not used
@@ -407,7 +407,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 // Push arguments
                 out += (Push(conf.top()))
                 // Call function
-                out += (Call("_arrmake_impl"))
+                out += (Call("_arrmake_impl_wrapper"))
                 // Pop arguments
                 out += (Pop(edx)) // actual operand doesn't matter because the value is not used
                 // Restore registers

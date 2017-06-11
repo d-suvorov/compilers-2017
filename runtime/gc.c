@@ -32,10 +32,16 @@ struct count_ptr * _make_count_ptr(char * raw) {
     return res;
 }
 
-char * _get_raw(const struct count_ptr * ptr) {
+char * _get_as_string(const struct count_ptr * ptr) {
     assert_marked((void **) &ptr);
     unmark_ptr((void **) &ptr);
     return ptr->data;
+}
+
+int32_t * _get_as_array32(const struct count_ptr * ptr) {
+    assert_marked((void **) &ptr);
+    unmark_ptr((void **) &ptr);
+    return (int32_t *) ptr->data;
 }
 
 void _increase_count(struct count_ptr * ptr) {

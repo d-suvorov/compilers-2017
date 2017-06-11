@@ -34,4 +34,4 @@ fun arrayIntrinsics() = arrayIntrinsicNArgs.keys
 
 fun arrayIntrinsicNArgs(name: String): Int = arrayIntrinsicNArgs[name]!!
 
-fun arrayIntrinsicWrapperName(name: String) = "_${name}"
+fun arrayIntrinsicWrapperName(name: String) = "_${name}_wrapper"
