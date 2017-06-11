@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "gc.h"
+#include "arithmetics.h"
 
 /* Take these from C standard library */
 size_t strlen(const char * str);
@@ -44,7 +45,8 @@ char * strmake(size_t length, char chr) {
 }
 
 size_t _strlen_wrapper(const struct count_ptr * p_str) {
-    return strlen(_get_raw(p_str));
+    size_t len = strlen(_get_raw(p_str));
+    return to_marked(len);
 }
 
 struct count_ptr * _strdup_raw(const char * str) {
@@ -55,26 +57,28 @@ struct count_ptr * _strdup_wrapper(const struct count_ptr * p_str) {
     return _strdup_raw(_get_raw(p_str));
 }
 
-int _strcmp_wrapper(const struct count_ptr * p_str1, const struct count_ptr * p_str2) {
-    return strcmp(_get_raw(p_str1), _get_raw(p_str2));
+int32_t _strcmp_wrapper(const struct count_ptr * p_str1, const struct count_ptr * p_str2) {
+    int32_t res = strcmp(_get_raw(p_str1), _get_raw(p_str2));
+    return to_marked(res);
 }
 
-char _strget_wrapper(const struct count_ptr * p_str, size_t idx) {
-    return strget(_get_raw(p_str), idx);
+int32_t _strget_wrapper(const struct count_ptr * p_str, size_t idx) {
+    int res = strget(_get_raw(p_str), from_marked(idx));
+    return to_marked(res);
 }
 
-int _strset_wrapper(struct count_ptr * p_str, size_t idx, char chr) {
-    return strset(_get_raw(p_str), idx, chr);
+int32_t _strset_wrapper(struct count_ptr * p_str, size_t idx, int32_t chr) {
+    return strset(_get_raw(p_str), from_marked(idx), from_marked(chr));
 }
 
 struct count_ptr * _strsub_wrapper(const struct count_ptr * p_str, size_t offset, size_t length) {
-    return _make_count_ptr(strsub(_get_raw(p_str), offset, length));
+    return _make_count_ptr(strsub(_get_raw(p_str), from_marked(offset), from_marked(length)));
 }
 
 struct count_ptr * _strcat_wrapper(const struct count_ptr * p_str1, const struct count_ptr * p_str2) {
     return _make_count_ptr(_strcat(_get_raw(p_str1), _get_raw(p_str2)));
 }
 
-struct count_ptr * _strmake_wrapper(size_t length, char chr) {
-    return _make_count_ptr(strmake(length, chr));
+struct count_ptr * _strmake_wrapper(size_t length, int32_t chr) {
+    return _make_count_ptr(strmake(from_marked(length), from_marked(chr)));
 }

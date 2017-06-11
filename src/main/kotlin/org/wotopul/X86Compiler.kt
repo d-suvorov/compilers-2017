@@ -243,8 +243,6 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 assert(top == Register(0))
                 out += listOf(
                     Call("read"),
-                    // "signed" left shift sets LSB to 0 marking value as primitive
-                    Binop("*", Operand.Literal(2, marked = false), eax),
                     Move(eax, top)
                 )
             }
@@ -253,8 +251,6 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val top = conf.pop()
                 assert(top == Register(0))
                 out += listOf(
-                    // convert from special representation with marked LSB
-                    Sar(top, Operand.Literal(1, marked = false)),
                     Push(top),
                     Call("write"),
                     Pop(top)
