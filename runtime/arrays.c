@@ -25,7 +25,7 @@ int32_t * _arrmake_impl(size_t length) {
 
 int32_t * _arrmake(size_t length, int32_t value) {
     int32_t * res = _arrmake_impl(length);
-    for (size_t i = 1; i < length + 1; i++) {
+    for (size_t i = 0; i < length; i++) {
         res[i + 1] = value;
     }
     return res;
@@ -34,8 +34,12 @@ int32_t * _arrmake(size_t length, int32_t value) {
 int32_t * _Arrmake(size_t length, const int32_t * init) {
     int32_t * res = _arrmake_impl(length);
     size_t init_length = init[0];
-    for (size_t i = 0; i < init_length; i++) {
+    size_t i = 0;
+    for (; i < init_length; i++) {
         res[i + 1] = init[i + 1];
+    }
+    for (; i < length; i++) {
+        res[i + 1] = MARKED_NULL;
     }
     return res;
 }

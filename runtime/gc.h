@@ -3,9 +3,11 @@
 
 #include <stdint.h>
 
-void mark_ptr(void ** ptr);
-void unmark_ptr(void ** ptr);
-void assert_marked(void ** ptr);
+#define MARKED_NULL 1u
+
+void _mark_ptr(void ** ptr);
+void _unmark_ptr(void ** ptr);
+void _assert_marked(void ** ptr);
 
 struct count_ptr;
 
