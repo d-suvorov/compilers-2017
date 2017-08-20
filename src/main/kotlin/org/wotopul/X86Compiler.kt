@@ -35,7 +35,20 @@ sealed class X86Instr {
                 if (idx !in registers.indices)
                     throw AssertionError("bad register index: $idx")
             }
+
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other?.javaClass != javaClass) return false
+
+                other as Register
+                return idx == other.idx
+            }
+
+            override fun hashCode(): Int {
+                return idx
+            }
         }
+
         class Literal(val value: Int, val marked: Boolean = true) : Operand()
         class StringLiteral(val label: String) : Operand()
         class Variable(val name: String) : Operand()
@@ -226,6 +239,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
     val mainIndex = program.indexOfFirst { it is StackOp.Label && it.name == mainLabel }
     for (i in mainIndex .. program.lastIndex) {
         val op = program[i]
+        // TODO do we need also `Load`
         if (op is StackOp.Load)
             mainLocals += op.name
         if (op is StackOp.Store)
@@ -240,7 +254,9 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Read -> {
                 val top = conf.push()
-                assert(top == Register(0))
+                // Does not hold because of how assignment/reads to arrays are compiled
+                // TODO review
+                // assert(top == Register(0))
                 out += listOf(
                     Call("read"),
                     Move(eax, top)

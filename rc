@@ -2,4 +2,4 @@
 
 # A dirty hack with relative path is used because
 # the script is called from a test directory.
-java -Xss4m -jar ../../target/rc.jar "$@"
+java -Xss4m -ea -jar ../../target/rc.jar "$@"
