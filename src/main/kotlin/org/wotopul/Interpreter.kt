@@ -7,8 +7,18 @@ import org.wotopul.VarValue.*
 interface ReferenceT
 
 sealed class VarValue {
-    class IntT(val value: Int) : VarValue()
-    class CharT(val value: Char) : VarValue()
+    class IntT(val value: Int) : VarValue() {
+        override fun toString(): String {
+            return "Int($value)"
+        }
+    }
+
+    class CharT(val value: Char) : VarValue() {
+        override fun toString(): String {
+            return "Char($value)"
+        }
+    }
+
     class StringT(val value: CharArray) : VarValue(), ReferenceT
 
     class UnboxedArrayT(val value: Array<Int>?) : VarValue(), ReferenceT {

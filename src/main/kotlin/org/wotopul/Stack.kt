@@ -37,6 +37,27 @@ sealed class StackOp {
     class Call(val name: String) : StackOp()
     class Enter(val name: String, val params: List<String>) : StackOp()
     object Return : StackOp()
+
+    override fun toString() = when (this) {
+        Nop              -> "Nop"
+        Read             -> "Read"
+        Write            -> "Write"
+        Pop              -> "Pop"
+        is Push          -> "Push $value"
+        is Load          -> "Load $name"
+        is Store         -> "Store $name"
+        LoadArr          -> "LoadArr"
+        StoreArr         -> "StoreArr"
+        MakeUnboxedArray -> "MakeUnboxedArray"
+        MakeBoxedArray   -> "MakeBoxedArray"
+        is Binop         -> "Binop[$op]"
+        is Label         -> "Label $name"
+        is Jump          -> "Jump $label"
+        is Jnz           -> "Jnz $label"
+        is Call          -> "Call $name"
+        is Enter         -> "Enter $name"
+        Return           -> "Return"
+    }
 }
 
 fun compile(program: Program): List<StackOp> {
