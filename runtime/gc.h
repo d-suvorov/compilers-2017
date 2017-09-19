@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+/* A raw integer constant */
 #define MARKED_NULL 1u
 
 void _mark_ptr(void ** ptr);

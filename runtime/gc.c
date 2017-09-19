@@ -7,12 +7,12 @@
 
 void _mark_ptr(void ** ptr) {
     uint32_t * int_ptr = (uint32_t *) ptr;
-    *int_ptr = *int_ptr | (uint32_t) 1;
+    *int_ptr |= (uint32_t) 1;
 }
 
 void _unmark_ptr(void ** ptr) {
     uint32_t * int_ptr = (uint32_t *) ptr;
-    *int_ptr = *int_ptr & ~ (uint32_t) 1;
+    *int_ptr &= ~ (uint32_t) 1;
 }
 
 bool _is_marked(void ** ptr) {
