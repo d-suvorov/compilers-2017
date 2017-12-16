@@ -161,7 +161,7 @@ sealed class X86Instr {
 fun X86FunctionContext(function: FunctionDefinition) =
     X86FunctionContext(function.name, function.params, function.locals)
 
-class X86FunctionContext(val name: String, params: List<String>, val locals: Set<String>) {
+class X86FunctionContext(val name: String, val params: List<String>, val locals: Set<String>) {
     private val localsSize = locals.size
     var tempSize = 0
 
@@ -206,10 +206,10 @@ class X86FunctionContext(val name: String, params: List<String>, val locals: Set
         val idx = symbolStack.size - offset - 1
         if (idx < 0)
             throw AssertionError("cannot find argument on stack")
-        if (idx < eaxIdx) {
-            return Register(idx)
+        return if (idx < eaxIdx) {
+            Register(idx)
         } else {
-            return Operand.Stack(localsSize - eaxIdx + idx + 1)
+            Operand.Stack(localsSize - eaxIdx + idx + 1)
         }
     }
 
@@ -217,7 +217,7 @@ class X86FunctionContext(val name: String, params: List<String>, val locals: Set
         fun next(size: Int): Operand =
             when (size) {
                 // TODO can the cut'paste be eliminated (#get)
-                in 0 .. eaxIdx - 1 -> Register(size)
+                in 0 until eaxIdx -> Register(size)
                 else -> {
                     val stackOffset = size - eaxIdx
                     tempSize = maxOf(tempSize, stackOffset + 1)
@@ -234,6 +234,23 @@ class X86FunctionContext(val name: String, params: List<String>, val locals: Set
 }
 
 fun compile(program: List<StackOp>, ast: Program): String {
+    fun modifyCounter(out: MutableList<X86Instr>, objPointer: Operand, increase: Boolean) {
+        // TODO save registers only when it is necessary and save only necessary amount of registers
+        // Save registers
+        for (i in 0 until eaxIdx)
+            out += Push(Register(i))
+        // Push arguments
+        out += Push(objPointer)
+        // Call function
+        val intrinsic = if (increase) "_increase_count" else "_decrease_count"
+        out += Call(intrinsic)
+        // Pop arguments
+        out += Pop(edx) // actual operand doesn't matter because the value is not used
+        // Restore registers
+        for (i in eaxIdx - 1 downTo 0)
+            out += Pop(Register(i))
+    }
+
     // TODO find an appropriate place for it
     val mainLocals = mutableSetOf<String>()
     val mainIndex = program.indexOfFirst { it is StackOp.Label && it.name == mainLabel }
@@ -269,7 +286,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 out += listOf(
                     Push(top),
                     Call("write"),
-                    Pop(top)
+                    Pop(top) // TODO does opnd matter here?
                 )
             }
 
@@ -283,7 +300,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     // This hack will hopefully go away with GC introduction
                     // TODO save registers only when it is necessary and save only necessary amount of registers
                     // Save registers
-                    for (i in 0 .. eaxIdx - 1)
+                    for (i in 0 until eaxIdx)
                         out += Push(Register(i))
                     // Push arguments
                     out += Push(opnd)
@@ -304,21 +321,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
             is StackOp.Pop -> {
                 val top = conf.pop()
-
-                /*// Call `_decrease_count`
-                // TODO save registers only when it is necessary and save only necessary amount of registers
-                // Save registers
-                for (i in 0 .. eaxIdx - 1)
-                    out += Push(Register(i))
-                // Push arguments
-                out += Push(top)
-                // Call function
-                out += Call("_decrease_count")
-                // Pop arguments
-                out += Pop(edx) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += Pop(Register(i))*/
+                modifyCounter(out, top, increase = false)
             }
 
             is StackOp.Load -> {
@@ -331,6 +334,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                         Move(edx, top)
                     )
                 }
+                modifyCounter(out, top, increase = true)
             }
 
             is StackOp.Store -> {
@@ -338,45 +342,13 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val slot = conf.variableSlot(op.name)
                 assert(top == Register(0))
 
-                /*if (op.name[0].isUpperCase()) {
-                    // Call `_decrease_count`
-                    // TODO save registers only when it is necessary and save only necessary amount of registers
-                    // Save registers
-                    for (i in 0..eaxIdx - 1)
-                        out += Push(Register(i))
-                    // Push arguments
-                    out += Push(slot)
-                    // Call function
-                    out += Call("_decrease_count")
-                    // Pop arguments
-                    out += Pop(edx) // actual operand doesn't matter because the value is not used
-                    // Restore registers
-                    for (i in eaxIdx - 1 downTo 0)
-                        out += Pop(Register(i))
-                }*/
-
+                modifyCounter(out, slot, increase = false)
                 out += Move(top, slot)
-
-                /*if (op.name[0].isUpperCase()) {
-                    // Call `_increase_count`
-                    // TODO save registers only when it is necessary and save only necessary amount of registers
-                    // Save registers
-                    for (i in 0..eaxIdx - 1)
-                        out += Push(Register(i))
-                    // Push arguments
-                    out += Push(top)
-                    // Call function
-                    out += Call("_increase_count")
-                    // Pop arguments
-                    out += Pop(edx) // actual operand doesn't matter because the value is not used
-                    // Restore registers
-                    for (i in eaxIdx - 1 downTo 0)
-                        out += Pop(Register(i))
-                }*/
+                // The reference counter for stored object does not change
             }
 
             is StackOp.LoadArr -> {
-                for (i in 0..eaxIdx - 1)
+                for (i in 0 until eaxIdx)
                     out += (Push(Register(i)))
                 // Push arguments
                 out += (Push(conf.get(1)))
@@ -391,12 +363,14 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     out += (Pop(Register(i)))
                 conf.pop()
                 conf.pop()
+
                 val top = conf.push()
                 out += Move(eax, top)
+                modifyCounter(out, top, increase = true)
             }
 
             is StackOp.StoreArr -> {
-                for (i in 0..eaxIdx - 1)
+                for (i in 0 until eaxIdx)
                     out += (Push(Register(i)))
                 // Push arguments
                 out += (Push(conf.get(2)))
@@ -418,7 +392,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
             }
 
             is StackOp.MakeUnboxedArray, StackOp.MakeBoxedArray -> {
-                for (i in 0..eaxIdx - 1)
+                for (i in 0 until eaxIdx)
                     out += (Push(Register(i)))
                 // Push arguments
                 out += (Push(conf.top()))
@@ -435,25 +409,6 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val top = conf.push()
                 out += Move(eax, top)
             }
-
-            /*is StackOp.MakeBoxedArray -> {
-                for (i in 0..eaxIdx - 1)
-                    out += (Push(Register(i)))
-                // Push arguments
-                out += (Push(conf.top()))
-                // Call function
-                out += (Call("_arrmake_impl"))
-                // Pop arguments
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += (Pop(Register(i)))
-                // Pop length from symbol stack
-                conf.pop()
-                // Put return value on a symbol stack
-                val top = conf.push()
-                out += Move(eax, top)
-            }*/
 
             is StackOp.Binop -> {
                 val src = conf.pop()
@@ -587,7 +542,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
                 // TODO save registers only when it is necessary and save only necessary amount of registers
                 // Save registers
-                for (i in 0 .. eaxIdx - 1)
+                for (i in 0 until eaxIdx)
                     out += Push(Register(i))
 
                 // Push arguments
@@ -610,7 +565,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 out += Call(name)
 
                 // Pop arguments
-                for (i in 0 .. nArgs - 1) {
+                for (i in 0 until nArgs) {
                     out += Pop(edx) // actual operand doesn't matter because the value is not used
                     conf.pop()
                 }
@@ -672,30 +627,19 @@ fun compile(program: List<StackOp>, ast: Program): String {
     }
 
     fun initializeLocals(c: X86FunctionContext) {
-        c.locals.map { c.variableSlot(it) }
-            .forEach { result.append(Move(Operand.Literal(0), it)) }
+        for (local in c.locals - c.params) {
+            val slot = c.variableSlot(local)
+            result.append(Move(Operand.Literal(0), slot))
+        }
     }
 
-    fun freeLocals(c: X86FunctionContext) {
-        with (result) {
-            for (local in c.locals) {
-                val slot = c.variableSlot(local)
-                // Call `_decrease_count`
-                // TODO save registers only when it is necessary and save only necessary amount of registers
-                // Save registers
-                for (i in 0..eaxIdx - 1)
-                    append(Push(Register(i)))
-                // Push arguments
-                append(Push(slot))
-                // Call function
-                append(Call("_decrease_count"))
-                // Pop arguments
-                append(Pop(edx)) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    append(Pop(Register(i)))
-            }
+    fun modifyLocalsRefCounter(c: X86FunctionContext, increase: Boolean) {
+        val out = mutableListOf<X86Instr>()
+        for (local in c.locals + c.params) {
+            val slot = c.variableSlot(local)
+            modifyCounter(out, slot, increase)
         }
+        out.forEach { result.append(it) }
     }
 
     fun closeStackFrame() {
@@ -704,8 +648,12 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
     fun compileCurrentFunctionBody() {
         openStackFrame(conf!!)
-        // initializeLocals(conf!!) -- overwrites params
+        initializeLocals(conf!!)
+        if (conf!!.name != mainLabel)
+            modifyLocalsRefCounter(conf!!, increase = true)
         body.forEach { result.append(it) }
+        if (conf!!.name != mainLabel)
+            modifyLocalsRefCounter(conf!!, increase = false)
         body.clear()
     }
 

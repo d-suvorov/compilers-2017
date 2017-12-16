@@ -9,6 +9,7 @@ int32_t _arrget(const int32_t * arr, size_t idx) {
 }
 
 int32_t _arrset(size_t idx, int32_t value, int32_t * arr) {
+    _decrease_count((struct count_ptr *) arr[idx + 1]);
     arr[idx + 1] = value;
     return 0;
 }

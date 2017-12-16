@@ -64,7 +64,8 @@ void _decrease_count(struct count_ptr * ptr) {
     _unmark_ptr((void **) &ptr);
     if (ptr == NULL)
         return;
-    if (--ptr->count == 0)
+    if (--ptr->count == 0) {
         free(ptr->data);
-    free(ptr);
+        free(ptr);
+    }
 }
