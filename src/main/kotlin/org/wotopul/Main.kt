@@ -8,9 +8,11 @@ fun main(args: Array<String>) {
     val usage = """
     |Usage: rc.native <mode> <source-file>
     |Available <mode> options:
-    | -i  interpretation
-    | -s  compilation to a stack machine representation and interpretation
-    | -o  compilation
+    | -i  - interpretation
+    | -s  - compilation to a stack machine representation and interpretation
+    | -o  - compilation
+    | -om - a special case of compilation mode in which a call to `mtrace`
+    |       GNU extension is embedded in the generated code
     | (See README here: https://github.com/anlun/compiler-tests.git)
     """.trimMargin()
     if (args.size != 2) {
@@ -42,14 +44,14 @@ fun main(args: Array<String>) {
                 println("Program crashed: ${e.message}")
             }
         }
-        "-o" -> {
+        "-o", "-om" -> {
             val filename = args[1]
             val name = filename.substring(0, filename.lastIndexOf("."))
 
             val source = readFile(filename)
             val program = parseProgram(source)
             val stackProgram = compile(program)
-            val asm = compile(stackProgram, program)
+            val asm = compile(stackProgram, program, args[0] == "-om")
 
             // write generated asm to a file
             val asmFilename = "$name.s" // TODO no extension in original filename

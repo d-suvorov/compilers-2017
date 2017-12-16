@@ -184,13 +184,13 @@ class X86FunctionContext(val name: String, val params: List<String>, val locals:
                    v
          */
 
-        // assign slots to locals
+        // Assign slots to locals
         var offset = 1
         for (local in locals) {
             localsSlots[local] = Operand.Stack(offset++)
         }
 
-        // assign slots to params
+        // Assign slots to params
         offset = -2
         for (param in params) {
             localsSlots[param] = Operand.Stack(offset--)
@@ -233,22 +233,29 @@ class X86FunctionContext(val name: String, val params: List<String>, val locals:
     fun pop() = symbolStack.removeAt(symbolStack.lastIndex)
 }
 
-fun compile(program: List<StackOp>, ast: Program): String {
-    fun modifyCounter(out: MutableList<X86Instr>, objPointer: Operand, increase: Boolean) {
+fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): String {
+    fun emitFunctionCall(out: MutableList<X86Instr>, name: String, vararg args: Operand) {
         // TODO save registers only when it is necessary and save only necessary amount of registers
         // Save registers
         for (i in 0 until eaxIdx)
             out += Push(Register(i))
         // Push arguments
-        out += Push(objPointer)
+        for (arg in args.reversed())
+            out += Push(arg)
         // Call function
-        val intrinsic = if (increase) "_increase_count" else "_decrease_count"
-        out += Call(intrinsic)
+        out += Call(name)
         // Pop arguments
-        out += Pop(edx) // actual operand doesn't matter because the value is not used
+        for (i in args.indices)
+            // Actual operand doesn't matter because the value is not used
+            out += Pop(edx)
         // Restore registers
         for (i in eaxIdx - 1 downTo 0)
             out += Pop(Register(i))
+    }
+
+    fun modifyCounter(out: MutableList<X86Instr>, objPointer: Operand, increase: Boolean) {
+        val intrinsic = if (increase) "_increase_count" else "_decrease_count"
+        emitFunctionCall(out, intrinsic, objPointer)
     }
 
     // TODO find an appropriate place for it
@@ -298,19 +305,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                     val opnd = Operand.StringLiteral(label)
                     // Call `strdup` to extract mutable string
                     // This hack will hopefully go away with GC introduction
-                    // TODO save registers only when it is necessary and save only necessary amount of registers
-                    // Save registers
-                    for (i in 0 until eaxIdx)
-                        out += Push(Register(i))
-                    // Push arguments
-                    out += Push(opnd)
-                    // Call function
-                    out += Call("_strdup_raw")
-                    // Pop arguments
-                    out += Pop(edx) // actual operand doesn't matter because the value is not used
-                    // Restore registers
-                    for (i in eaxIdx - 1 downTo 0)
-                        out += Pop(Register(i))
+                    emitFunctionCall(out, "_strdup_raw", opnd)
                     // Put return value on a symbol stack
                     out += Move(eax, top)
                 } else {
@@ -348,19 +343,9 @@ fun compile(program: List<StackOp>, ast: Program): String {
             }
 
             is StackOp.LoadArr -> {
-                for (i in 0 until eaxIdx)
-                    out += (Push(Register(i)))
-                // Push arguments
-                out += (Push(conf.get(1)))
-                out += (Push(conf.get(0)))
-                // Call function
-                out += (Call("_arrget_wrapper"))
-                // Pop arguments
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += (Pop(Register(i)))
+                emitFunctionCall(out, "_arrget_wrapper", conf.get(0), conf.get(1))
+
+                // Pop array and index from stack
                 conf.pop()
                 conf.pop()
 
@@ -370,44 +355,21 @@ fun compile(program: List<StackOp>, ast: Program): String {
             }
 
             is StackOp.StoreArr -> {
-                for (i in 0 until eaxIdx)
-                    out += (Push(Register(i)))
-                // Push arguments
-                out += (Push(conf.get(2)))
-                out += (Push(conf.get(1)))
-                out += (Push(conf.get(0)))
-                // Call function
-                out += (Call("_arrset_wrapper"))
-                // Pop arguments
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += (Pop(Register(i)))
+                emitFunctionCall(out, "_arrset_wrapper",
+                    conf.get(0), conf.get(1), conf.get(2))
+                // Pop index and value from stack
+                // Leave array on stack
                 conf.pop()
                 conf.pop()
-                // leave array on stack
-                // ignore return value
+                // Ignore return value
             }
 
             is StackOp.MakeUnboxedArray, StackOp.MakeBoxedArray -> {
-                for (i in 0 until eaxIdx)
-                    out += (Push(Register(i)))
-                // Push arguments
-                out += (Push(conf.top()))
-                // Call function
-                out += (Call("_arrmake_impl_wrapper"))
-                // Pop arguments
-                out += (Pop(edx)) // actual operand doesn't matter because the value is not used
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += (Pop(Register(i)))
+                emitFunctionCall(out, "_arrmake_impl_wrapper", conf.top())
                 // Pop length from symbol stack
                 conf.pop()
                 // Put return value on a symbol stack
-                val top = conf.push()
-                out += Move(eax, top)
+                out += Move(eax, conf.push())
             }
 
             is StackOp.Binop -> {
@@ -439,7 +401,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
                     "*" -> {
                         compileBinary(op.op)
-                        // balance left shift added by multiplication
+                        // Balance left shift added by multiplication
                         out += Sar(dst, Operand.Literal(1, marked = false))
                     }
 
@@ -451,7 +413,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
                             Move(if (op.op == "/") eax else edx, dst)
                         )
                         if (op.op == "/") {
-                            // balance right shift added by division
+                            // Balance right shift added by division
                             convertDstToMarkedPrimitive()
                         }
                     }
@@ -540,40 +502,23 @@ fun compile(program: List<StackOp>, ast: Program): String {
                 val top = conf.push()
                 out += Move(eax, top)*/
 
-                // TODO save registers only when it is necessary and save only necessary amount of registers
-                // Save registers
-                for (i in 0 until eaxIdx)
-                    out += Push(Register(i))
-
-                // Push arguments
+                val name = when {
+                    op.name in stringIntrinsics() -> stringIntrinsicWrapperName(op.name)
+                    op.name in arrayIntrinsics() -> arrayIntrinsicWrapperName(op.name)
+                    else -> op.name
+                }
                 // TODO throw an exception if function is undefined
-                val nArgs = if (op.name in stringIntrinsics())
-                    stringIntrinsicNArgs(op.name)
-                else if (op.name in arrayIntrinsics())
-                    arrayIntrinsicNArgs(op.name)
-                else
-                    ast.functionDefinitionByName(op.name)!!.params.size
-                for (offset in nArgs - 1 downTo 0)
-                    out += Push(conf.get(offset))
-
-                // Call function
-                val name = if (op.name in stringIntrinsics())
-                    stringIntrinsicWrapperName(op.name)
-                else if (op.name in arrayIntrinsics())
-                    arrayIntrinsicWrapperName(op.name)
-                else op.name
-                out += Call(name)
-
-                // Pop arguments
+                val nArgs = when {
+                    op.name in stringIntrinsics() -> stringIntrinsicNArgs(op.name)
+                    op.name in arrayIntrinsics() -> arrayIntrinsicNArgs(op.name)
+                    else -> ast.functionDefinitionByName(op.name)!!.params.size
+                }
+                val args = (0 until nArgs).map { conf.get(it) }
+                emitFunctionCall(out, name, *args.toTypedArray())
+                // Pop args from symbol stack
                 for (i in 0 until nArgs) {
-                    out += Pop(edx) // actual operand doesn't matter because the value is not used
                     conf.pop()
                 }
-
-                // Restore registers
-                for (i in eaxIdx - 1 downTo 0)
-                    out += Pop(Register(i))
-
                 // Put return value on a symbol stack
                 val top = conf.push()
                 out += Move(eax, top)
@@ -582,11 +527,11 @@ fun compile(program: List<StackOp>, ast: Program): String {
             is StackOp.Enter -> { /* do nothing */ }
 
             is StackOp.Return -> {
-                // move result to %eax
+                // Move result to %eax
                 assert(conf.top() == Register(0))
                 out += Move(conf.pop(), eax)
 
-                // close stack frame
+                // Close stack frame
                 out += Leave
 
                 out += Ret
@@ -626,6 +571,14 @@ fun compile(program: List<StackOp>, ast: Program): String {
         }
     }
 
+    fun mtrace() {
+        if (mtrace) {
+            val tmp = mutableListOf<X86Instr>()
+            emitFunctionCall(tmp, "mtrace")
+            tmp.forEach { result.append(it) }
+        }
+    }
+
     fun initializeLocals(c: X86FunctionContext) {
         for (local in c.locals - c.params) {
             val slot = c.variableSlot(local)
@@ -648,6 +601,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
 
     fun compileCurrentFunctionBody() {
         openStackFrame(conf!!)
+        mtrace()
         initializeLocals(conf!!)
         if (conf!!.name != mainLabel)
             modifyLocalsRefCounter(conf!!, increase = true)
@@ -668,7 +622,7 @@ fun compile(program: List<StackOp>, ast: Program): String {
             compile(op, conf!!, body)
         }
     }
-    compileCurrentFunctionBody() // last function
+    compileCurrentFunctionBody() // Last function
     closeStackFrame()
 
     fun header(): String {
