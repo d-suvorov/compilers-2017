@@ -168,7 +168,7 @@ class X86FunctionContext(val name: String, val params: List<String>, val locals:
     val frameSize get() = localsSize + tempSize
     val isStackFrameOpen get() = frameSize != 0
 
-    val symbolStack: MutableList<Operand> = mutableListOf()
+    private val symbolStack: MutableList<Operand> = mutableListOf()
 
     private val localsSlots: MutableMap<String, Operand> = mutableMapOf()
 
@@ -527,6 +527,16 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
             is StackOp.Enter -> { /* do nothing */ }
 
             is StackOp.Return -> {
+                // For `top` goes out as a return value
+                // Before releasing locals to not free return value
+                modifyCounter(out, conf.top(), increase = true)
+
+                // Release locals
+                for (local in conf.locals + conf.params) {
+                    val slot = conf.variableSlot(local)
+                    modifyCounter(out, slot, increase = false)
+                }
+
                 // Move result to %eax
                 assert(conf.top() == Register(0))
                 out += Move(conf.pop(), eax)
@@ -572,11 +582,9 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
     }
 
     fun mtrace() {
-        if (mtrace) {
-            val tmp = mutableListOf<X86Instr>()
-            emitFunctionCall(tmp, "mtrace")
-            tmp.forEach { result.append(it) }
-        }
+        val tmp = mutableListOf<X86Instr>()
+        emitFunctionCall(tmp, "mtrace")
+        tmp.forEach { result.append(it) }
     }
 
     fun initializeLocals(c: X86FunctionContext) {
@@ -586,13 +594,13 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
         }
     }
 
-    fun modifyLocalsRefCounter(c: X86FunctionContext, increase: Boolean) {
-        val out = mutableListOf<X86Instr>()
-        for (local in c.locals + c.params) {
+    fun acquireParams(c: X86FunctionContext) {
+        val tmp = mutableListOf<X86Instr>()
+        for (local in c.params) {
             val slot = c.variableSlot(local)
-            modifyCounter(out, slot, increase)
+            modifyCounter(tmp, slot, increase = true)
         }
-        out.forEach { result.append(it) }
+        tmp.forEach { result.append(it) }
     }
 
     fun closeStackFrame() {
@@ -601,13 +609,13 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
 
     fun compileCurrentFunctionBody() {
         openStackFrame(conf!!)
-        mtrace()
+        if (mtrace && conf!!.name == mainLabel) {
+            mtrace()
+        }
         initializeLocals(conf!!)
-        if (conf!!.name != mainLabel)
-            modifyLocalsRefCounter(conf!!, increase = true)
+        // Code that releases params and locals is emitted before function return
+        acquireParams(conf!!)
         body.forEach { result.append(it) }
-        if (conf!!.name != mainLabel)
-            modifyLocalsRefCounter(conf!!, increase = false)
         body.clear()
     }
 
