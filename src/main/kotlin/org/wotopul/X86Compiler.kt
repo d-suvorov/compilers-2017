@@ -344,13 +344,14 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
 
             is StackOp.LoadArr -> {
                 emitFunctionCall(out, "_arrget_wrapper", conf.get(0), conf.get(1))
-
-                // Pop array and index from stack
-                conf.pop()
-                conf.pop()
-
-                val top = conf.push()
+                // Pop array and replace index on top of the symbol
+                // stack with value returned from `_arrget_wrapper`
+                val arr = conf.pop()
+                val top = conf.top()
                 out += Move(eax, top)
+                // Release array
+                modifyCounter(out, arr, increase = false)
+                // Acquire array element
                 modifyCounter(out, top, increase = true)
             }
 
@@ -358,7 +359,7 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
                 emitFunctionCall(out, "_arrset_wrapper",
                     conf.get(0), conf.get(1), conf.get(2))
                 // Pop index and value from stack
-                // Leave array on stack
+                // Leave array on stack (do not need to release array)
                 conf.pop()
                 conf.pop()
                 // Ignore return value
