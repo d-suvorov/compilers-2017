@@ -58,10 +58,6 @@ int32_t _arrlen_wrapper(const struct count_ptr * p_arr) {
     return to_marked(res);
 }
 
-struct count_ptr * _arrmake_impl_wrapper(size_t length) {
-    return _make_count_ptr((char *) _arrmake_impl(from_marked(length)));
-}
-
 struct count_ptr * _arrmake_wrapper(size_t length, int32_t value) {
     return _make_count_ptr((char *) _arrmake(from_marked(length), value));
 }

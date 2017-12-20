@@ -371,7 +371,7 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
             }
 
             is StackOp.MakeUnboxedArray, StackOp.MakeBoxedArray -> {
-                emitFunctionCall(out, "_arrmake_impl_wrapper", conf.top())
+                emitFunctionCall(out, "_arrmake_wrapper", conf.top(), Operand.Literal(0))
                 // Pop length from symbol stack
                 conf.pop()
                 // Put return value on a symbol stack
