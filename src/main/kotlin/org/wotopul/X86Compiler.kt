@@ -234,10 +234,13 @@ class X86FunctionContext(val name: String, val params: List<String>, val locals:
 }
 
 fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): String {
-    fun emitFunctionCall(out: MutableList<X86Instr>, name: String, vararg args: Operand) {
+    fun emitFunctionCall(out: MutableList<X86Instr>, name: String,
+                         vararg args: Operand, saveEax: Boolean = false)
+    {
         // TODO save registers only when it is necessary and save only necessary amount of registers
         // Save registers
-        for (i in 0 until eaxIdx)
+        val lastReg = if (saveEax) eaxIdx else eaxIdx - 1
+        for (i in 0 .. lastReg)
             out += Push(Register(i))
         // Push arguments
         for (arg in args.reversed())
@@ -249,13 +252,15 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
             // Actual operand doesn't matter because the value is not used
             out += Pop(edx)
         // Restore registers
-        for (i in eaxIdx - 1 downTo 0)
+        for (i in lastReg downTo 0)
             out += Pop(Register(i))
     }
 
-    fun modifyCounter(out: MutableList<X86Instr>, objPointer: Operand, increase: Boolean) {
+    fun modifyCounter(out: MutableList<X86Instr>, objPointer: Operand,
+                      increase: Boolean, saveEax: Boolean = false)
+    {
         val intrinsic = if (increase) "_increase_count" else "_decrease_count"
-        emitFunctionCall(out, intrinsic, objPointer)
+        emitFunctionCall(out, intrinsic, objPointer, saveEax = saveEax)
     }
 
     // TODO find an appropriate place for it
@@ -516,8 +521,9 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
                 }
                 val args = (0 until nArgs).map { conf.get(it) }
                 emitFunctionCall(out, name, *args.toTypedArray())
-                // Pop args from symbol stack
+                // Pop args from symbol stack and release them
                 for (i in 0 until nArgs) {
+                    modifyCounter(out, conf.top(), increase = false, saveEax = true)
                     conf.pop()
                 }
                 // Put return value on a symbol stack
@@ -595,11 +601,11 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
         }
     }
 
-    fun acquireParams(c: X86FunctionContext) {
+    fun modifyRefCount(c: X86FunctionContext, vars: Iterable<String>, increase: Boolean) {
         val tmp = mutableListOf<X86Instr>()
-        for (local in c.params) {
+        for (local in vars) {
             val slot = c.variableSlot(local)
-            modifyCounter(tmp, slot, increase = true)
+            modifyCounter(tmp, slot, increase)
         }
         tmp.forEach { result.append(it) }
     }
@@ -615,8 +621,12 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
         }
         initializeLocals(conf!!)
         // Code that releases params and locals is emitted before function return
-        acquireParams(conf!!)
+        modifyRefCount(conf!!, conf!!.params, true)
         body.forEach { result.append(it) }
+        // Free main locals
+        if (conf!!.name == mainLabel) {
+            modifyRefCount(conf!!, conf!!.locals, false)
+        }
         body.clear()
     }
 
