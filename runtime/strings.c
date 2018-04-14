@@ -51,7 +51,7 @@ size_t _strlen_wrapper(const struct count_ptr * p_str) {
 }
 
 struct count_ptr * _strdup_raw(const char * str) {
-    return _make_count_ptr(strdup(str));
+    return _make_count_ptr(strdup(str), STRING_TAG);
 }
 
 struct count_ptr * _strdup_wrapper(const struct count_ptr * p_str) {
@@ -73,13 +73,16 @@ int32_t _strset_wrapper(struct count_ptr * p_str, size_t idx, int32_t chr) {
 }
 
 struct count_ptr * _strsub_wrapper(const struct count_ptr * p_str, size_t offset, size_t length) {
-    return _make_count_ptr(strsub(_get_as_string(p_str), from_marked(offset), from_marked(length)));
+    char * str = strsub(_get_as_string(p_str), from_marked(offset), from_marked(length));
+    return _make_count_ptr(str, STRING_TAG);
 }
 
 struct count_ptr * _strcat_wrapper(const struct count_ptr * p_str1, const struct count_ptr * p_str2) {
-    return _make_count_ptr(_strcat(_get_as_string(p_str1), _get_as_string(p_str2)));
+    char * str = _strcat(_get_as_string(p_str1), _get_as_string(p_str2));
+    return _make_count_ptr(str, STRING_TAG);
 }
 
 struct count_ptr * _strmake_wrapper(size_t length, int32_t chr) {
-    return _make_count_ptr(strmake(from_marked(length), from_marked(chr)));
+    char * str = strmake(from_marked(length), from_marked(chr));
+    return _make_count_ptr(str, STRING_TAG);
 }

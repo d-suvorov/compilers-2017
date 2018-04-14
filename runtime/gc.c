@@ -26,12 +26,14 @@ void _assert_marked(void ** ptr) {
 
 struct count_ptr {
     long count;
+    int ref_type;
     char * data;
 };
 
-struct count_ptr * _make_count_ptr(char * raw) {
+struct count_ptr * _make_count_ptr(char * raw, int ref_type) {
     struct count_ptr * res = (struct count_ptr *) malloc(sizeof(struct count_ptr));
     res->count = 1;
+    res->ref_type = ref_type;
     res->data = raw; 
     _mark_ptr((void **) &res);
     return res;
@@ -65,6 +67,13 @@ void _decrease_count(struct count_ptr * ptr) {
     if (ptr == NULL)
         return;
     if (--ptr->count == 0) {
+        if (ptr->ref_type == ARRAY_TAG) {
+            int32_t * data = (int32_t *) ptr->data;
+            int len = data[0];
+            for (int i = 1; i <= len; i++) {
+                _decrease_count((struct count_ptr *) data[i]);
+            }
+        }
         free(ptr->data);
         free(ptr);
     }

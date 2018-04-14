@@ -59,10 +59,12 @@ int32_t _arrlen_wrapper(const struct count_ptr * p_arr) {
 }
 
 struct count_ptr * _arrmake_wrapper(size_t length, int32_t value) {
-    return _make_count_ptr((char *) _arrmake(from_marked(length), value));
+    int32_t * arr = _arrmake(from_marked(length), value);
+    return _make_count_ptr((char *) arr, ARRAY_TAG);
 }
 
 struct count_ptr * _Arrmake_wrapper(size_t length, const struct count_ptr * init) {
-    return _make_count_ptr((char *) _Arrmake(from_marked(length), _get_as_array32(init)));
+    int32_t * arr = _Arrmake(from_marked(length), _get_as_array32(init));
+    return _make_count_ptr((char *) arr, ARRAY_TAG);
 }
 
