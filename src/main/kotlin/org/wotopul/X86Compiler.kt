@@ -534,10 +534,6 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
             is StackOp.Enter -> { /* do nothing */ }
 
             is StackOp.Return -> {
-                // For `top` goes out as a return value
-                // Before releasing locals to not free return value
-                modifyCounter(out, conf.top(), increase = true)
-
                 // Release locals
                 for (local in conf.locals + conf.params) {
                     val slot = conf.variableSlot(local)
