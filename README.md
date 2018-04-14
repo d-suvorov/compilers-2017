@@ -9,10 +9,10 @@
 - [x] If + циклы (`core/test009.expr` - `core/test022.expr`) в режиме компиляции.
 - [x] Функции (`core/test023.expr` - `core/test026.expr`) в режиме интерпретатора.
 - [x] Функции (`core/test023.expr` - `core/test026.expr`) в режиме стековой машины.
-- [ ] Функции (`core/test023.expr` - `core/test026.expr`) в режиме компиляции.
-- [ ] Строки (`core/test027.expr` - `core/test028.expr`) в режиме интерпретатора.
-- [ ] Строки (`core/test027.expr` - `core/test028.expr`) в режиме стековой машины.
-- [ ] Строки (`core/test027.expr` - `core/test028.expr`) в режиме компиляции.
-- [ ] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме интерпретатора.
-- [ ] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме стековой машины.
-- [ ] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме компиляции.
+- [x] Функции (`core/test023.expr` - `core/test026.expr`) в режиме компиляции.
+- [x] Строки (`core/test027.expr` - `core/test028.expr`) в режиме интерпретатора.
+- [x] Строки (`core/test027.expr` - `core/test028.expr`) в режиме стековой машины.
+- [x] Строки (`core/test027.expr` - `core/test028.expr`) в режиме компиляции.
+- [x] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме интерпретатора.
+- [x] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме стековой машины.
+- [x] Массивы (`core/test029.expr` - `core/test030.expr`) в режиме компиляции.
