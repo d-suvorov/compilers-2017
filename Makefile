@@ -18,6 +18,9 @@ test:
 	$(MAKE) -j4 -C $(TESTS_DIR)/expressions -f checkInterpreter
 	$(MAKE) -j4 -C $(TESTS_DIR)/deep-expressions -f checkInterpreter
 
+test-gc:
+	$(MAKE) -C $(TESTS_DIR)/gc
+
 clean:
 	mvn clean
 	$(MAKE) -C $(RUNTIME_DIR) clean
