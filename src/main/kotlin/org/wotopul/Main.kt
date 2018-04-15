@@ -1,7 +1,6 @@
 package org.wotopul
 
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.InputStreamReader
 
 fun main(args: Array<String>) {
@@ -53,16 +52,7 @@ fun main(args: Array<String>) {
             val stackProgram = compile(program)
             val asm = compile(stackProgram, program, args[0] == "-om")
 
-            // write generated asm to a file
-            val asmFilename = "$name.s" // TODO no extension in original filename
-            FileOutputStream(asmFilename).bufferedWriter().use { it.write(asm) }
-
-            // invoke assembler (GCC)
-            val rcRuntime = System.getenv("RC_RUNTIME") ?: "./runtime"
-            val gccProc = Runtime.getRuntime().exec("gcc -g -m32 -o $name $rcRuntime/runtime.o $asmFilename")
-            if (gccProc.waitFor() != 0) {
-                print(gccProc.errorStream.reader().use { it.readText() })
-            }
+            invokeGCC(".", name, asm)
         }
         else -> {
             println("Unknown option: " + args[0])

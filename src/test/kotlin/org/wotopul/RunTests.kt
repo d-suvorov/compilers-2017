@@ -26,6 +26,10 @@ fun main(args: Array<String>) {
                     success = false
                     println("$mode mode: $suite : $case failed: ${e.message}")
                     return
+                } catch (e: CompilationException) {
+                    success = false
+                    println("$mode mode: $suite : $case failed: compilation error")
+                    return
                 }
                 if (actual != expected) {
                     success = false
@@ -35,6 +39,7 @@ fun main(args: Array<String>) {
 
             runMode("interpreter", ::runInterpreter)
             runMode("stack", ::runStackMachine)
+            runMode("compiler") { p, _ -> runCompiler(testDir, case, p) }
         }
     }
     println(if (success) "All tests passed" else "There are errors!")
@@ -49,3 +54,31 @@ fun runStackMachine(program: Program, input: List<Int>): String =
     interpret(compile(program), input)
         .map(Configuration.OutputItem::toString)
         .fold("", String::plus)
+
+class CompilationException() : Exception()
+
+fun runCompiler(testDir: String, name: String, program: Program): String {
+    val fullName = "$testDir/$name"
+
+    // Compile
+    val stackProgram = compile(program)
+    val asm = compile(stackProgram, program)
+    val gccCode = invokeGCC(testDir, name, asm);
+    if (gccCode != 0)
+        throw CompilationException()
+
+    // Run
+    val testProc = Runtime.getRuntime()
+        .exec(arrayOf(
+            "/bin/sh",
+            "-c",
+            "cat $fullName.input | $fullName > $fullName.log"
+        ))
+    if (testProc.waitFor() != 0) {
+        print(testProc.errorStream.reader().use { it.readText() })
+        throw ExecutionException("program crashed")
+    }
+
+    // Read output
+    return readFile("$fullName.log")
+}
