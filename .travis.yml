@@ -11,5 +11,7 @@ before_install:
 
 install:
   - make runtime
-  - export MAVEN_OPTS="-Xss4m"
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+
+script:
+  - MAVEN_OPTS="-Xss8m" | mvn test -B
