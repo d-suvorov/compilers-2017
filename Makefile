@@ -13,11 +13,10 @@ runtime:
 build:
 	mvn package
 
-test: all
-	cd $(TESTS_DIR)
-	core/checkInterpreter
-	expressions/checkInterpreter
-	deep-expressions/checkInterpreter
+test:
+	$(MAKE) -C $(TESTS_DIR)/core -f checkInterpreter
+	$(MAKE) -C $(TESTS_DIR)/expressions -f checkInterpreter
+	$(MAKE) -C $(TESTS_DIR)/deep-expressions -f checkInterpreter
 
 clean:
 	mvn clean
