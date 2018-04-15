@@ -14,4 +14,5 @@ install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 
 script:
-  - MAVEN_OPTS="-Xss10m" | mvn test -B
+  - make test > /dev/null
+  - mvn test -B

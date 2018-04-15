@@ -40,7 +40,7 @@ class TestSuite {
                     }
                 }
 
-                runMode("interpreter", ::runInterpreter)
+                // runMode("interpreter", ::runInterpreter)
                 runMode("stack", ::runStackMachine)
                 runMode("compiler") { p, _ -> runCompiler(testDir, case, p) }
             }
