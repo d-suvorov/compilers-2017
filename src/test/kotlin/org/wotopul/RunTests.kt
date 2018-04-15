@@ -10,7 +10,8 @@ class TestSuite {
     fun runTests() {
         val baseDir = "compiler-tests/"
         var success = true
-        for (suite in arrayOf("core", "expressions", "deep-expressions", "gc")) {
+        for (suite in arrayOf("core", "expressions", "deep-expressions")) {
+            print("Running tests in $suite")
             val testDir = "$baseDir/$suite"
             val list: List<String> = File(testDir).list().sorted()
                 .filter({ it.endsWith(".expr") })
@@ -40,7 +41,7 @@ class TestSuite {
                     }
                 }
 
-                // runMode("interpreter", ::runInterpreter)
+                runMode("interpreter", ::runInterpreter)
                 runMode("stack", ::runStackMachine)
                 runMode("compiler") { p, _ -> runCompiler(testDir, case, p) }
             }

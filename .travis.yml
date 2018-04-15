@@ -14,5 +14,4 @@ install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 
 script:
-  - make test > /dev/null
   - mvn test -B
