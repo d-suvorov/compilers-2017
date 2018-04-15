@@ -14,9 +14,9 @@ build:
 	mvn package
 
 test:
-	$(MAKE) -C $(TESTS_DIR)/core -f checkInterpreter
-	$(MAKE) -C $(TESTS_DIR)/expressions -f checkInterpreter
-	$(MAKE) -C $(TESTS_DIR)/deep-expressions -f checkInterpreter
+	$(MAKE) -j4 -C $(TESTS_DIR)/core -f checkInterpreter
+	$(MAKE) -j4 -C $(TESTS_DIR)/expressions -f checkInterpreter
+	$(MAKE) -j4 -C $(TESTS_DIR)/deep-expressions -f checkInterpreter
 
 clean:
 	mvn clean
