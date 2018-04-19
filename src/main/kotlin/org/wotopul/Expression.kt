@@ -24,7 +24,10 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
     is Const -> Pair(conf, IntT(expr.value))
 
     is Variable -> {
-        evalArray(conf, expr, expr.indices.size)
+        if (!expr.array && expr.name in conf.functions.keys)
+            Pair(conf, FunctionPointerT(expr.name))
+        else
+            evalArray(conf, expr, expr.indices.size)
     }
 
     is Binop -> {

@@ -63,12 +63,15 @@ sealed class VarValue {
         }
     }
 
+    class FunctionPointerT(val name: String) : VarValue()
+
     fun type(): String = when (this) {
         is IntT -> "int"
         is CharT -> "char"
         is StringT -> "string"
         is UnboxedArrayT -> "unboxed array"
         is BoxedArrayT -> "boxed array"
+        is FunctionPointerT -> "function pointer"
     }
 
     fun toInt(): Int = when (this) {
@@ -108,6 +111,11 @@ sealed class VarValue {
         if (this is BoxedArrayT) this
         else throw ExecutionException(
             "conversions of ${type()} to boxed array are not allowed")
+
+    fun asFunctionPointerT(): FunctionPointerT =
+        if (this is FunctionPointerT) this
+        else throw ExecutionException(
+            "conversions of ${type()} to function pointer are not allowed")
 }
 
 fun interpret(program: Program, input: List<Int>): List<OutputItem> =
@@ -264,7 +272,16 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "Arrmake" -> Arrmake(function, conf)
 
         else -> {
-            val definition = conf.functions[function.name]
+            val name = if (conf.functions.containsKey(function.name)) {
+                function.name
+            } else {
+                val symbol = conf.environment[function.name]
+                    ?: throw ExecutionException("undefined name: ${function.name}")
+                val pointer = symbol.asFunctionPointerT()
+                pointer.name
+            }
+
+            val definition = conf.functions[name]
                 ?: throw ExecutionException("undefined function: ${function.name}")
             checkArgsSize(definition.params.size, function)
 
