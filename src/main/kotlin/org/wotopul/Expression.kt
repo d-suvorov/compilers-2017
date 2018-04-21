@@ -24,11 +24,15 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
     is Const -> Pair(conf, IntT(expr.value))
 
     is Variable -> {
-        if (!expr.array && conf.functionTable.isDeclared(expr.name)) {
+        val regularVariable = conf.environment.containsKey(expr.name)
+        if (regularVariable) {
+            evalArray(conf, expr, expr.indices.size)
+        } else {
+            if (!conf.functionTable.isDeclared(expr.name)) {
+                throw ExecutionException("invalid function pointer value: $expr.name")
+            }
             val tableIndex = conf.functionTable.getIndex(expr.name)
             Pair(conf, FunctionPointerT(tableIndex))
-        } else {
-            evalArray(conf, expr, expr.indices.size)
         }
     }
 
