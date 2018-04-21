@@ -12,9 +12,9 @@ fun evalArray(conf: Configuration, variable: Variable, depth: Int): Pair<Configu
     } else {
         val (conf1, value) = evalArray(conf, variable, depth - 1)
         val (conf2, index) = eval(variable.indices[depth - 1], conf1)
-        when (value) {
-            is UnboxedArrayT -> return Pair(conf2, IntT(value.get(index.toInt())))
-            is BoxedArrayT -> return Pair(conf2, value.get(index.toInt()) as VarValue)
+        return when (value) {
+            is UnboxedArrayT -> Pair(conf2, IntT(value.get(index.toInt())))
+            is BoxedArrayT -> Pair(conf2, value.get(index.toInt()) as VarValue)
             else -> throw ExecutionException("cannot index primitive value")
         }
     }
