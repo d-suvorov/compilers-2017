@@ -12,7 +12,7 @@ class TestSuite {
         val baseDir = "compiler-tests/"
         var success = true
         for (suite in arrayOf("core", "expressions", "deep-expressions")) {
-            print("Running tests in $suite")
+            println("Running tests in $suite")
             val testDir = "$baseDir/$suite"
             val list: List<String> = File(testDir).list().sorted()
                 .filter({ it.endsWith(".expr") })
