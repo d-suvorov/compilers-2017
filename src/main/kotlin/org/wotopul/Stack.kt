@@ -8,9 +8,6 @@ import org.wotopul.StackOp.*
 import org.wotopul.VarValue.*
 import java.util.*
 
-var freeNum = 0
-fun freeVariable() = "_v${freeNum++}"
-
 sealed class StackOp {
     object Nop : StackOp()
 
@@ -225,7 +222,7 @@ class StackConf(
     override var input: List<Int>,
     override var output: List<OutputItem> = emptyList(),
     var stack: List<VarValue?> = emptyList(),
-    val frames: MutableList<MutableMap<String, VarValue?>> = mutableListOf(mutableMapOf())
+    private val frames: MutableList<MutableMap<String, VarValue?>> = mutableListOf(mutableMapOf())
 )
     : Configuration(input, output, emptyMap())
 {
