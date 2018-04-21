@@ -161,7 +161,7 @@ open class Configuration(
     fun updateReturnValue(value: VarValue) =
         updateEnvironment(environment + (returnValueVarName to value))
 
-    companion object { val returnValueVarName = "return" }
+    companion object { const val returnValueVarName = "return" }
 }
 
 fun eval(stmt: Statement, start: Configuration): Configuration =
