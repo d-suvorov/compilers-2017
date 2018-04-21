@@ -63,7 +63,7 @@ sealed class VarValue {
         }
     }
 
-    class FunctionPointerT(val name: String) : VarValue()
+    class FunctionPointerT(val tableIndex: Int) : VarValue()
 
     fun type(): String = when (this) {
         is IntT -> "int"
@@ -125,7 +125,8 @@ open class Configuration(
     open val input: List<Int>,
     open val output: List<OutputItem> = emptyList(),
     open val environment: Map<String, VarValue> = emptyMap(),
-    val functions: Map<String, FunctionDefinition> = emptyMap())
+    val functions: Map<String, FunctionDefinition> = emptyMap(),
+    val functionTable: FunctionTable = FunctionTable(functions.keys))
 {
     sealed class OutputItem {
         object Prompt : OutputItem()
@@ -278,7 +279,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
                 val symbol = conf.environment[function.name]
                     ?: throw ExecutionException("undefined name: ${function.name}")
                 val pointer = symbol.asFunctionPointerT()
-                pointer.name
+                conf.functionTable.getName(pointer.tableIndex)
             }
 
             val definition = conf.functions[name]
