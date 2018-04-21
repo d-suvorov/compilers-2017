@@ -498,7 +498,7 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
 
                 // restore stack layout
                 // restore registers
-                val nArgs = ast.functionDefinitionByName(op.name)!!.params.size
+                val nArgs = ast.functionDefinition(op.name)!!.params.size
                 val nShiftedSlots = stackOffset - nArgs
                 for (i in 0 .. nShiftedSlots) {
                     val top = conf.push()
@@ -517,7 +517,7 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
                 val nArgs = when {
                     op.name in stringIntrinsics() -> stringIntrinsicNArgs(op.name)
                     op.name in arrayIntrinsics() -> arrayIntrinsicNArgs(op.name)
-                    else -> ast.functionDefinitionByName(op.name)!!.params.size
+                    else -> ast.functionDefinition(op.name)!!.params.size
                 }
                 val args = (0 until nArgs).map { conf.get(it) }
                 emitFunctionCall(out, name, *args.toTypedArray())
@@ -561,7 +561,7 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
     fun functionStart(op: StackOp): Boolean {
         if (op !is StackOp.Label)
             return false
-        val function = ast.functionDefinitionByName(op.name)
+        val function = ast.functionDefinition(op.name)
         if (function != null) {
             nextCtx = X86FunctionContext(function)
             return true

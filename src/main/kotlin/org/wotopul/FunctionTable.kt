@@ -1,10 +1,8 @@
 package org.wotopul
 
-class FunctionTable(functionNames: Set<String>) {
-    private val table: Array<String> = functionNames.toTypedArray()
-
-    fun getName(index: Int) = table[index]
-
-    fun getIndex(name: String) =
-        table.indices.first { table[it] == name }
+interface FunctionTable {
+    fun functionDefinition(name: String): FunctionDefinition?
+    fun getName(index: Int): String
+    fun getIndex(name: String): Int
+    fun isDeclared(name: String): Boolean
 }

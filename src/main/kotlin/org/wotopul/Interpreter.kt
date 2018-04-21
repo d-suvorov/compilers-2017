@@ -122,11 +122,10 @@ fun interpret(program: Program, input: List<Int>): List<OutputItem> =
     eval(program.main, Configuration(input, program)).output
 
 open class Configuration(
+    val functionTable: FunctionTable,
     open val input: List<Int>,
     open val output: List<OutputItem> = emptyList(),
-    open val environment: Map<String, VarValue> = emptyMap(),
-    val functions: Map<String, FunctionDefinition> = emptyMap(),
-    val functionTable: FunctionTable = FunctionTable(functions.keys))
+    open val environment: Map<String, VarValue> = emptyMap())
 {
     sealed class OutputItem {
         object Prompt : OutputItem()
@@ -149,10 +148,10 @@ open class Configuration(
     }
 
     constructor(input: List<Int>, program: Program)
-        : this(input, functions = program.functions.associateBy({ it.name }))
+        : this(program, input)
 
     fun updateEnvironment(newEnv: Map<String, VarValue>) =
-        Configuration(this.input, this.output, newEnv, this.functions)
+        Configuration(this.functionTable, this.input, this.output, newEnv)
 
     fun returned() = returnValueVarName in environment
 
@@ -176,7 +175,7 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
             val name = variable.name
             if (!variable.array) {
                 val updated = afterCond.environment + (name to rhsValue)
-                Configuration(afterCond.input, afterCond.output, updated, afterCond.functions)
+                Configuration(afterCond.functionTable, afterCond.input, afterCond.output, updated)
             } else {
                 val (lastConf1, lastArray) = evalArray(afterCond, variable, variable.indices.size - 1)
                 val (lastConf2, index) = eval(variable.indices.last(), lastConf1)
@@ -200,7 +199,7 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
             val name = variable.name
             if (!variable.array) {
                 val updated = start.environment + (name to IntT(inputHead))
-                Configuration(inputTail, start.output + OutputItem.Prompt, updated, start.functions)
+                Configuration(start.functionTable, inputTail, start.output + OutputItem.Prompt, updated)
             } else {
                 val (lastConf1, lastArray) = evalArray(start, variable, variable.indices.size - 1)
                 val (lastConf2, index) = eval(variable.indices.last(), lastConf1)
@@ -210,10 +209,10 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
                     else -> throw ExecutionException("cannot index primitive value")
                 }
                 Configuration(
+                    lastConf2.functionTable,
                     inputTail,
                     lastConf2.output + OutputItem.Prompt,
-                    lastConf2.environment,
-                    lastConf2.functions
+                    lastConf2.environment
                 )
             }
         }
@@ -221,8 +220,9 @@ fun eval(stmt: Statement, start: Configuration): Configuration =
         is Write -> {
             val (afterExpr, value) = eval(stmt.value, start)
             val updatedOutput = afterExpr.output + OutputItem.Number(value.toInt())
-            Configuration(afterExpr.input, updatedOutput,
-                afterExpr.environment, afterExpr.functions)
+            Configuration(afterExpr.functionTable,
+                afterExpr.input, updatedOutput,
+                afterExpr.environment)
         }
 
         is Sequence -> evalSequentially(stmt.first, stmt.rest, start)
@@ -273,7 +273,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
         "Arrmake" -> Arrmake(function, conf)
 
         else -> {
-            val name = if (conf.functions.containsKey(function.name)) {
+            val name = if (conf.functionTable.isDeclared(function.name)) {
                 function.name
             } else {
                 val symbol = conf.environment[function.name]
@@ -282,7 +282,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
                 conf.functionTable.getName(pointer.tableIndex)
             }
 
-            val definition = conf.functions[name]
+            val definition = conf.functionTable.functionDefinition(name)
                 ?: throw ExecutionException("undefined function: ${function.name}")
             checkArgsSize(definition.params.size, function)
 

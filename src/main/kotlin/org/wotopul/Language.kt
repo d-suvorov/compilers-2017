@@ -8,10 +8,18 @@ class Program(
     val functions: List<FunctionDefinition>,
     val main: Statement
 )
-    : AbstractNode()
+    : AbstractNode(), FunctionTable
 {
-    fun functionDefinitionByName(name: String) =
+    override fun functionDefinition(name: String) =
         functions.find { it.name == name }
+
+    override fun getName(index: Int) = functions[index].name
+
+    override fun getIndex(name: String): Int =
+        functions.indices.first { functions[it].name == name }
+
+    override fun isDeclared(name: String) =
+        functionDefinition(name) != null
 }
 
 class FunctionDefinition(

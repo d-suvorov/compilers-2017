@@ -219,12 +219,11 @@ fun compile(function: FunctionCall): List<StackOp> {
 }
 
 class StackConf(
-    override var input: List<Int>,
-    override var output: List<OutputItem> = emptyList(),
+    var input: List<Int>,
+    var output: List<OutputItem> = emptyList(),
     var stack: List<VarValue?> = emptyList(),
     private val frames: MutableList<MutableMap<String, VarValue?>> = mutableListOf(mutableMapOf())
 )
-    : Configuration(input, output, emptyMap())
 {
     val stackEnvironment: MutableMap<String, VarValue?>
         get() = frames.last()

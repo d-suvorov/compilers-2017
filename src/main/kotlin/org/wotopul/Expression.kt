@@ -24,7 +24,7 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
     is Const -> Pair(conf, IntT(expr.value))
 
     is Variable -> {
-        if (!expr.array && expr.name in conf.functions.keys) {
+        if (!expr.array && conf.functionTable.isDeclared(expr.name)) {
             val tableIndex = conf.functionTable.getIndex(expr.name)
             Pair(conf, FunctionPointerT(tableIndex))
         } else {
