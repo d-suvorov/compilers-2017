@@ -2,6 +2,7 @@ package org.wotopul
 
 import org.junit.Test
 import java.io.File
+import kotlin.test.assertTrue
 
 // TODO cut'n'paste in Main.kt
 
@@ -46,7 +47,7 @@ class TestSuite {
                 runMode("compiler") { p, _ -> runCompiler(testDir, case, p) }
             }
         }
-        println(if (success) "All tests passed" else "There are errors!")
+        assertTrue(success)
     }
 }
 
