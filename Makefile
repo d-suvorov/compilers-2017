@@ -11,7 +11,7 @@ runtime:
 	$(MAKE) -C $(RUNTIME_DIR)
 
 build:
-	mvn package
+	mvn package -DskipTests
 
 test:
 	$(MAKE) -j4 -C $(TESTS_DIR)/core -f checkInterpreter
