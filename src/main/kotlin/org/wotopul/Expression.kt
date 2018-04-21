@@ -28,10 +28,8 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
         if (regularVariable) {
             evalArray(conf, expr, expr.indices.size)
         } else {
-            if (!conf.functionTable.isDeclared(expr.name)) {
-                throw ExecutionException("invalid function pointer value: $expr.name")
-            }
             val tableIndex = conf.functionTable.getIndex(expr.name)
+                ?: throw ExecutionException("invalid function pointer value: $expr.name")
             Pair(conf, FunctionPointerT(tableIndex))
         }
     }
@@ -73,14 +71,15 @@ fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when 
 }
 
 fun evalBinary(op: String, left: VarValue, right: VarValue): VarValue {
-    if (left is IntT && right is IntT) {
+    /*if (left is IntT && right is IntT) {
         return IntT(intBinopByString(op) (left.value, right.value))
-    }
+    }*/
     if (left is CharT && right is CharT) {
         return IntT(charBinopByString(op) (left.value, right.value))
     }
-    throw ExecutionException(
-        "binary operations on ${left.type()} and ${right.type()} are not allowed")
+    return IntT(intBinopByString(op) (left.toInt(), right.toInt()))
+    /*throw ExecutionException(
+        "binary operations on ${left.type()} and ${right.type()} are not allowed")*/
 }
 
 fun intBinopByString(op: String): (Int, Int) -> Int = when (op) {

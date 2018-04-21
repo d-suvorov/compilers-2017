@@ -15,8 +15,8 @@ class Program(
 
     override fun getName(index: Int) = functions[index].name
 
-    override fun getIndex(name: String): Int =
-        functions.indices.first { functions[it].name == name }
+    override fun getIndex(name: String): Int? =
+        functions.indices.firstOrNull { functions[it].name == name }
 
     override fun isDeclared(name: String) =
         functionDefinition(name) != null

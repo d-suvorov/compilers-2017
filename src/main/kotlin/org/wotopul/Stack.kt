@@ -57,15 +57,17 @@ sealed class StackOp {
     }
 }
 
+var sourceProgram: Program? = null
+
+var labelCounter = 0
+
+fun nextLabel(): String {
+    val res = "_label$labelCounter"
+    labelCounter++
+    return res
+}
+
 fun compile(program: Program): List<StackOp> {
-    var labelCounter = 0
-
-    fun nextLabel(): String {
-        val res = "_label$labelCounter"
-        labelCounter++
-        return res
-    }
-
     fun compile(stmt: Statement): List<StackOp> = when (stmt) {
         is Statement.Skip -> listOf(Nop)
         is Statement.Sequence -> compile(stmt.first) + compile(stmt.rest)
@@ -146,12 +148,13 @@ fun compile(program: Program): List<StackOp> {
         is Statement.FunctionStatement -> compile(stmt.function) + Pop
     }
 
-
     fun compile(function: FunctionDefinition) =
         listOf(
             Label(function.name),
             Enter(function.name, function.params)
         ) + compile(function.body)
+
+    sourceProgram = program
 
     val result = mutableListOf<StackOp>()
     for (function in program.functions) {
@@ -211,11 +214,43 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
 }
 
 fun compile(function: FunctionCall): List<StackOp> {
+    // Compile arguments
     val result = mutableListOf<StackOp>()
     for (expr in function.args.reversed()) {
         result += compile(expr)
     }
-    return result + Call(function.name)
+
+    fun regularFunction(name: String) =
+        sourceProgram!!.isDeclared(function.name)
+        || function.name in stringIntrinsics()
+        || function.name in arrayIntrinsics()
+
+    if (regularFunction(function.name)) {
+        result += Call(function.name)
+    } else {
+        compileFunctionPointerCall(result, function)
+    }
+
+    return result
+}
+
+private fun compileFunctionPointerCall(
+    result: MutableList<StackOp>, function: FunctionCall)
+{
+    val afterAll = nextLabel()
+    for (i in 0 until sourceProgram!!.functions.size) {
+        val afterCurrentFunction = nextLabel()
+        result += listOf(
+            Load(function.name),
+            Push(IntT(i)),
+            Binop("!="),
+            Jnz(afterCurrentFunction),
+            Call(sourceProgram!!.getName(i)),
+            Jump(afterAll),
+            Label(afterCurrentFunction)
+        )
+    }
+    result += Label(afterAll)
 }
 
 class StackConf(
@@ -299,9 +334,14 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             is Push -> curr.stack += op.value
 
             is Load -> {
-                val value = curr.stackEnvironment[op.name]
-                    ?: throw ExecutionException("undefined name: ${op.name}")
-                curr.stack += value
+                val varValue = curr.stackEnvironment[op.name]
+                if (varValue != null) {
+                    curr.stack += varValue
+                } else {
+                    val functionIndex = sourceProgram!!.getIndex(op.name)
+                        ?: throw ExecutionException("undefined name: ${op.name}")
+                    curr.stack += FunctionPointerT(functionIndex)
+                }
             }
 
             is Store -> curr.stackEnvironment += (op.name to popOrThrow())

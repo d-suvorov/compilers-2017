@@ -77,6 +77,7 @@ sealed class VarValue {
     fun toInt(): Int = when (this) {
         is IntT -> value
         is CharT -> value.toInt()
+        is FunctionPointerT -> tableIndex
         else -> throw ExecutionException(
             "conversions of ${type()} to int are not allowed")
     }
