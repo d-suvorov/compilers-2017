@@ -243,13 +243,19 @@ private fun compileFunctionPointerCall(
 {
     val afterAll = nextLabel()
     for (i in 0 until sourceProgram!!.functions.size) {
+        val name = sourceProgram!!.getName(i)
+        val def = sourceProgram!!.functionDefinition(name)!!
+        if (def.params.size != function.args.size) {
+            // Do not check if the function has different number of parameters
+            continue
+        }
         val afterCurrentFunction = nextLabel()
         result += listOf(
             Load(function.name),
             Push(IntT(i)),
             Binop("!="),
             Jnz(afterCurrentFunction),
-            Call(sourceProgram!!.getName(i)),
+            Call(name),
             Jump(afterAll),
             Label(afterCurrentFunction)
         )
