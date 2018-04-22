@@ -168,7 +168,12 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
 
     is Variable -> {
         if (!expr.array) {
-            listOf(Load(expr.name))
+            if (sourceProgram!!.isDeclared(expr.name)) {
+                val tableIndex = sourceProgram!!.getIndex(expr.name)!!
+                listOf(Push(FunctionPointerT(tableIndex)))
+            } else {
+                listOf(Load(expr.name))
+            }
         } else {
             val res = mutableListOf<StackOp>()
             for (idxExpr in expr.indices.reversedArray()) {
@@ -334,14 +339,9 @@ fun interpret(program: List<StackOp>, start: StackConf): StackConf {
             is Push -> curr.stack += op.value
 
             is Load -> {
-                val varValue = curr.stackEnvironment[op.name]
-                if (varValue != null) {
-                    curr.stack += varValue
-                } else {
-                    val functionIndex = sourceProgram!!.getIndex(op.name)
-                        ?: throw ExecutionException("undefined name: ${op.name}")
-                    curr.stack += FunctionPointerT(functionIndex)
-                }
+                val value = curr.stackEnvironment[op.name]
+                    ?: throw ExecutionException("undefined name: ${op.name}")
+                curr.stack += value
             }
 
             is Store -> curr.stackEnvironment += (op.name to popOrThrow())
