@@ -268,9 +268,6 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
     val mainIndex = program.indexOfFirst { it is StackOp.Label && it.name == mainLabel }
     for (i in mainIndex .. program.lastIndex) {
         val op = program[i]
-        // TODO do we need also `Load`
-        if (op is StackOp.Load)
-            mainLocals += op.name
         if (op is StackOp.Store)
             mainLocals += op.name
     }
