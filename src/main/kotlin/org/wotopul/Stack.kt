@@ -225,9 +225,9 @@ fun compile(function: FunctionCall): List<StackOp> {
     }
 
     fun regularFunction(name: String) =
-        sourceProgram!!.isDeclared(function.name)
-        || function.name in stringIntrinsics()
-        || function.name in arrayIntrinsics()
+        sourceProgram!!.isDeclared(name)
+        || name in stringIntrinsics()
+        || name in arrayIntrinsics()
 
     if (regularFunction(function.name)) {
         result += Call(function.name)

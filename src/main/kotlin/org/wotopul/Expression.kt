@@ -7,12 +7,12 @@ fun evalArray(conf: Configuration, variable: Variable, depth: Int): Pair<Configu
     val array: VarValue = conf.environment[variable.name]
         ?: throw ExecutionException("undefined name: ${variable.name}")
 
-    if (depth == 0) {
-        return Pair(conf, array)
+    return if (depth == 0) {
+        Pair(conf, array)
     } else {
         val (conf1, value) = evalArray(conf, variable, depth - 1)
         val (conf2, index) = eval(variable.indices[depth - 1], conf1)
-        return when (value) {
+        when (value) {
             is UnboxedArrayT -> Pair(conf2, IntT(value.get(index.toInt())))
             is BoxedArrayT -> Pair(conf2, value.get(index.toInt()) as VarValue)
             else -> throw ExecutionException("cannot index primitive value")
