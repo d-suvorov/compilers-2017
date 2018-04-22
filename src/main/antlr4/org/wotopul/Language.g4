@@ -83,6 +83,7 @@ expr
     | left=expr op='&&'                      right=expr # infix
     | left=expr op=('||' | '!!')             right=expr # infix
     | variable                                          # var
+    | functionPointer_                                  # functionPointer
     | value=NUM                                         # const
     | function_                                         # function
     | boxedArrayInitializer                             # boxedArray
@@ -94,6 +95,10 @@ expr
 
 variable returns [String identifier]
     : ID ( '[' expr ']' )* { $identifier = $ID.text; }
+    ;
+
+functionPointer_
+    : '&' ID
     ;
 
 function_

@@ -23,15 +23,12 @@ fun evalArray(conf: Configuration, variable: Variable, depth: Int): Pair<Configu
 fun eval(expr: Expr, conf: Configuration): Pair<Configuration, VarValue> = when (expr) {
     is Const -> Pair(conf, IntT(expr.value))
 
-    is Variable -> {
-        val regularVariable = conf.environment.containsKey(expr.name)
-        if (regularVariable) {
-            evalArray(conf, expr, expr.indices.size)
-        } else {
-            val tableIndex = conf.functionTable.getIndex(expr.name)
-                ?: throw ExecutionException("invalid function pointer value: $expr.name")
-            Pair(conf, FunctionPointerT(tableIndex))
-        }
+    is Variable -> evalArray(conf, expr, expr.indices.size)
+
+    is FunctionPointer -> {
+        val tableIndex = conf.functionTable.getIndex(expr.name)
+            ?: throw ExecutionException("invalid function pointer value: $expr.name")
+        Pair(conf, FunctionPointerT(tableIndex))
     }
 
     is Binop -> {

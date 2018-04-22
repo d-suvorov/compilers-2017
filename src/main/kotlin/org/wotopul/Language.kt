@@ -53,6 +53,7 @@ sealed class Expr : AbstractNode() {
     class Variable(val name: String, val indices: Array<Expr> = emptyArray()) : Expr() {
         val array: Boolean = !indices.isEmpty()
     }
+    class FunctionPointer(val name: String) : Expr()
 
     class Binop(val op: String, val lhs: Expr, val rhs: Expr) : Expr()
 

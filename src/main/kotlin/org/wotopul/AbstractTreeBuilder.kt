@@ -1,17 +1,18 @@
 package org.wotopul
 
 import org.wotopul.Expr.*
+import org.wotopul.LanguageParser.*
 import org.wotopul.Statement.*
 
 class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
-    override fun visitProgram(ctx: LanguageParser.ProgramContext?): Program {
+    override fun visitProgram(ctx: ProgramContext?): Program {
         val functions = ctx!!.functionDefinition().map { visit(it) as FunctionDefinition }
         val main = visit(ctx.stmt()) as Statement
         return Program(functions, main)
     }
 
     override fun visitFunctionDefinition(
-        ctx: LanguageParser.FunctionDefinitionContext?): FunctionDefinition
+        ctx: FunctionDefinitionContext?): FunctionDefinition
     {
         val name = ctx!!.ID().text
         val params = ctx.params().ID().map { it.text }
@@ -19,92 +20,97 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return FunctionDefinition(name, params, body, ctx.locals)
     }
 
-    override fun visitSkip(ctx: LanguageParser.SkipContext?) = Skip
+    override fun visitSkip(ctx: SkipContext?) = Skip
 
-    override fun visitSequence(ctx: LanguageParser.SequenceContext?) =
+    override fun visitSequence(ctx: SequenceContext?) =
         Sequence(
             visit(ctx!!.first) as Statement,
             visit(ctx.rest) as Statement)
 
-    override fun visitWrite(ctx: LanguageParser.WriteContext?) =
+    override fun visitWrite(ctx: WriteContext?) =
         Write(visit(ctx!!.expr()) as Expr)
 
-    override fun visitAssignment(ctx: LanguageParser.AssignmentContext?): Assignment {
+    override fun visitAssignment(ctx: AssignmentContext?): Assignment {
         val variable = visit(ctx!!.variable) as Variable
         val expr = visit(ctx.expr()) as Expr
         return Assignment(variable, expr)
     }
 
-    override fun visitConst(ctx: LanguageParser.ConstContext?): Const {
+    override fun visitConst(ctx: ConstContext?): Const {
         val value = ctx!!.NUM().text.toInt()
         return Const(value)
     }
 
-    override fun visitVariable(ctx: LanguageParser.VariableContext?): Variable {
+    override fun visitVariable(ctx: VariableContext?): Variable {
         val name = ctx!!.ID().text
         val indices = ctx.expr().map { visit(it) as Expr }.toTypedArray()
         return Variable(name, indices)
     }
 
-    override fun visitParenthesis(ctx: LanguageParser.ParenthesisContext?): AbstractNode =
+    override fun visitFunctionPointer(ctx: FunctionPointerContext?): FunctionPointer {
+        val name = ctx!!.functionPointer_().ID().text
+        return FunctionPointer(name)
+    }
+
+    override fun visitParenthesis(ctx: ParenthesisContext?): AbstractNode =
         // children by their indices must be:
         // 0 - open parenthesis, 1 - expression, 2 - close parenthesis
         visit(ctx!!.getChild(1))
 
-    override fun visitInfix(ctx: LanguageParser.InfixContext?): Expr {
+    override fun visitInfix(ctx: InfixContext?): Expr {
         val op = ctx!!.op.text
         val lhs = visit(ctx.left) as Expr
         val rhs = visit(ctx.right) as Expr
         return Binop(if (op == "!!") "||" else op, lhs, rhs)
     }
 
-    override fun visitCharLiteral(ctx: LanguageParser.CharLiteralContext?): CharLiteral {
+    override fun visitCharLiteral(ctx: CharLiteralContext?): CharLiteral {
         val chStr = ctx!!.text.trim('\'')
         assert(chStr.length == 1)
         return CharLiteral(chStr.first())
     }
 
-    override fun visitStringLiteral(ctx: LanguageParser.StringLiteralContext?): StringLiteral {
+    override fun visitStringLiteral(ctx: StringLiteralContext?): StringLiteral {
         val str = ctx!!.text.trim('\"')
         return StringLiteral(str)
     }
 
-    override fun visitBooleanLiteral(ctx: LanguageParser.BooleanLiteralContext?): AbstractNode =
+    override fun visitBooleanLiteral(ctx: BooleanLiteralContext?): AbstractNode =
         when (ctx!!.text) {
             "false" -> Const(0)
             "true" -> Const(1)
             else -> throw AssertionError("unknown boolean value: ${ctx.text}")
         }
 
-    override fun visitFunction(ctx: LanguageParser.FunctionContext?) =
+    override fun visitFunction(ctx: FunctionContext?) =
         FunctionExpr(visitFunctionImpl(ctx!!.function_()))
 
-    override fun visitBoxedArray(ctx: LanguageParser.BoxedArrayContext?): BoxedArrayInitializer {
+    override fun visitBoxedArray(ctx: BoxedArrayContext?): BoxedArrayInitializer {
         // ? is necessary if Java returns null. Something is broken in Kotlin?
-        val arrayInitializerListContext: LanguageParser.ArrayInitializerListContext? =
+        val arrayInitializerListContext: ArrayInitializerListContext? =
             ctx!!.boxedArrayInitializer().arrayInitializerList()
         return BoxedArrayInitializer(visitArrayInitializerListImpl(arrayInitializerListContext))
     }
 
-    override fun visitUnboxedArray(ctx: LanguageParser.UnboxedArrayContext?): UnboxedArrayInitializer {
+    override fun visitUnboxedArray(ctx: UnboxedArrayContext?): UnboxedArrayInitializer {
         // ? is necessary if Java returns null. Something is broken in Kotlin?
-        val arrayInitializerListContext: LanguageParser.ArrayInitializerListContext? =
+        val arrayInitializerListContext: ArrayInitializerListContext? =
             ctx!!.unboxedArrayInitializer().arrayInitializerList()
         return UnboxedArrayInitializer(visitArrayInitializerListImpl(arrayInitializerListContext))
     }
 
-    private fun visitArrayInitializerListImpl(ctx: LanguageParser.ArrayInitializerListContext?): Array<Expr> {
+    private fun visitArrayInitializerListImpl(ctx: ArrayInitializerListContext?): Array<Expr> {
         if (ctx == null)
             return emptyArray()
         return ctx.expr().map { visit(it) as Expr }.toTypedArray()
     }
 
-    override fun visitRead(ctx: LanguageParser.ReadContext?): Read {
+    override fun visitRead(ctx: ReadContext?): Read {
         val variable = visit(ctx!!.variable) as Variable
         return Read(variable)
     }
 
-    override fun visitIf(ctx: LanguageParser.IfContext?): If {
+    override fun visitIf(ctx: IfContext?): If {
         val elseClause = ctx!!.elseClause
         val initial = if (elseClause != null) visit(elseClause) as Statement else Skip
         val resultElseClause = ctx.elif().reversed().fold(initial, fun(curr, elif): Statement {
@@ -113,19 +119,19 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
         return If(visit(ctx.cond) as Expr, visit(ctx.thenClause) as Statement, resultElseClause)
     }
 
-    override fun visitWhile(ctx: LanguageParser.WhileContext?): While {
+    override fun visitWhile(ctx: WhileContext?): While {
         val cond = visit(ctx!!.cond) as Expr
         val body = visit(ctx.body) as Statement
         return While(cond, body)
     }
 
-    override fun visitRepeat(ctx: LanguageParser.RepeatContext?): Repeat {
+    override fun visitRepeat(ctx: RepeatContext?): Repeat {
         val body = visit(ctx!!.body) as Statement
         val cond = visit(ctx.cond) as Expr
         return Repeat(body, cond)
     }
 
-    override fun visitFor(ctx: LanguageParser.ForContext?) =
+    override fun visitFor(ctx: ForContext?) =
         Sequence(
             visit(ctx!!.init) as Statement,
             While(
@@ -137,15 +143,15 @@ class AbstractTreeBuilder : LanguageBaseVisitor<AbstractNode>() {
             )
         )
 
-    override fun visitReturnStatement(ctx: LanguageParser.ReturnStatementContext?): Return {
+    override fun visitReturnStatement(ctx: ReturnStatementContext?): Return {
         val value = visit(ctx!!.expr()) as Expr
         return Return(value)
     }
 
-    override fun visitFunctionStatement(ctx: LanguageParser.FunctionStatementContext?) =
+    override fun visitFunctionStatement(ctx: FunctionStatementContext?) =
         FunctionStatement(visitFunctionImpl(ctx!!.function_()))
 
-    private fun visitFunctionImpl(function: LanguageParser.Function_Context): FunctionCall {
+    private fun visitFunctionImpl(function: Function_Context): FunctionCall {
         val name = function.ID().text
         val args = function.args().expr().map { visit(it) as Expr }
         return FunctionCall(name, args)

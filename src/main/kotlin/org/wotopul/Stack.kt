@@ -3,7 +3,6 @@ package org.wotopul
 import org.wotopul.Configuration.OutputItem
 import org.wotopul.Configuration.OutputItem.Number
 import org.wotopul.Configuration.OutputItem.Prompt
-import org.wotopul.Expr.Variable
 import org.wotopul.StackOp.*
 import org.wotopul.VarValue.*
 import java.util.*
@@ -166,14 +165,9 @@ fun compile(program: Program): List<StackOp> {
 fun compile(expr: Expr): List<StackOp> = when (expr) {
     is Expr.Const -> listOf(Push(IntT(expr.value)))
 
-    is Variable -> {
+    is Expr.Variable -> {
         if (!expr.array) {
-            if (sourceProgram!!.isDeclared(expr.name)) {
-                val tableIndex = sourceProgram!!.getIndex(expr.name)!!
-                listOf(Push(FunctionPointerT(tableIndex)))
-            } else {
-                listOf(Load(expr.name))
-            }
+            listOf(Load(expr.name))
         } else {
             val res = mutableListOf<StackOp>()
             for (idxExpr in expr.indices.reversedArray()) {
@@ -185,6 +179,11 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
             }
             res
         }
+    }
+
+    is Expr.FunctionPointer -> {
+        val tableIndex = sourceProgram!!.getIndex(expr.name)!!
+        listOf(Push(FunctionPointerT(tableIndex)))
     }
 
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
