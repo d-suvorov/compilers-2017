@@ -219,10 +219,12 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
 }
 
 fun compile(function: FunctionCall, popReturnValue: Boolean): List<StackOp> {
-    // Compile arguments
     val result = mutableListOf<StackOp>()
+
+    // Compile arguments
+    val args = mutableListOf<StackOp>()
     for (expr in function.args.reversed()) {
-        result += compile(expr)
+        args += compile(expr)
     }
 
     fun regularFunction(name: String) =
@@ -231,18 +233,19 @@ fun compile(function: FunctionCall, popReturnValue: Boolean): List<StackOp> {
         || name in arrayIntrinsics()
 
     if (regularFunction(function.name)) {
+        result += args
         result += Call(function.name)
         if (popReturnValue)
             result += Pop
     } else {
-        compileFunctionPointerCall(result, function, popReturnValue)
+        compileFunctionPointerCall(result, args, function, popReturnValue)
     }
 
     return result
 }
 
 private fun compileFunctionPointerCall(result: MutableList<StackOp>,
-    function: FunctionCall, popReturnValue: Boolean)
+    args: MutableList<StackOp>,function: FunctionCall, popReturnValue: Boolean)
 {
     val afterAll = nextLabel()
     for (i in 0 until sourceProgram!!.functions.size) {
@@ -257,9 +260,10 @@ private fun compileFunctionPointerCall(result: MutableList<StackOp>,
             Load(function.name),
             Push(IntT(i)),
             Binop("!="),
-            Jnz(afterCurrentFunction),
-            Call(name)
+            Jnz(afterCurrentFunction)
         )
+        result += args
+        result += Call(name)
         if (popReturnValue)
             result += Pop
         result += listOf(
