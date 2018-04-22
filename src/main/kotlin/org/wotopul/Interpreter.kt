@@ -89,33 +89,27 @@ sealed class VarValue {
     }
 
     fun asIntT(): IntT =
-        if (this is IntT) this
-        else throw ExecutionException(
+        this as? IntT ?: throw ExecutionException(
             "conversions of ${type()} to int are not allowed")
 
     fun asCharT(): CharT =
-        if (this is CharT) this
-        else throw ExecutionException(
+        this as? CharT ?: throw ExecutionException(
             "conversions of ${type()} to char are not allowed")
 
     fun asStringT(): StringT =
-        if (this is StringT) this
-        else throw ExecutionException(
+        this as? StringT ?: throw ExecutionException(
             "conversions of ${type()} to string are not allowed")
 
     fun asUnboxedArrayT(): UnboxedArrayT =
-        if (this is UnboxedArrayT) this
-        else throw ExecutionException(
+        this as? UnboxedArrayT ?: throw ExecutionException(
             "conversions of ${type()} to unboxed array are not allowed")
 
     fun asBoxedArrayT(): BoxedArrayT =
-        if (this is BoxedArrayT) this
-        else throw ExecutionException(
+        this as? BoxedArrayT ?: throw ExecutionException(
             "conversions of ${type()} to boxed array are not allowed")
 
     fun asFunctionPointerT(): FunctionPointerT =
-        if (this is FunctionPointerT) this
-        else throw ExecutionException(
+        this as? FunctionPointerT ?: throw ExecutionException(
             "conversions of ${type()} to function pointer are not allowed")
 }
 
@@ -292,7 +286,7 @@ fun evalFunction(function: FunctionCall, conf: Configuration): Pair<Configuratio
             for (i in function.args.indices) {
                 val paramName = definition.params[i]
                 val (next, arg) = eval(function.args[i], curr)
-                argsEnv.put(paramName, arg)
+                argsEnv[paramName] = arg
                 curr = next
             }
 

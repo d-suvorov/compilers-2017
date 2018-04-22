@@ -3,9 +3,9 @@ package org.wotopul
 import org.wotopul.X86Instr.*
 import org.wotopul.X86Instr.Operand.Register
 
-val mainLabel = "main"
+const val mainLabel = "main"
 
-val wordSize = 4
+const val wordSize = 4
 
 val registers: List<String> = listOf(
     "%ebx",
