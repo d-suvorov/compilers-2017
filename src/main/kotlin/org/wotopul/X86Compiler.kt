@@ -479,7 +479,6 @@ fun compile(program: List<StackOp>, ast: Program, mtrace: Boolean = false): Stri
 
             is StackOp.Jnz -> {
                 val top = conf.pop()
-                assert(top == Register(0))
                 out += listOf(
                     Binop("test", top, top),
                     Jnz(op.label)
