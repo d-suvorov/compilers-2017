@@ -144,7 +144,8 @@ fun compile(program: Program): List<StackOp> {
 
         is Statement.Return -> compile(stmt.value) + Return
 
-        is Statement.FunctionStatement -> compile(stmt.function) + Pop
+        is Statement.FunctionStatement ->
+            compile(stmt.function, popReturnValue = true)
     }
 
     fun compile(function: FunctionDefinition) =
@@ -187,7 +188,7 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     }
 
     is Expr.Binop -> compile(expr.lhs) + compile(expr.rhs) + Binop(expr.op)
-    is Expr.FunctionExpr -> compile(expr.function)
+    is Expr.FunctionExpr -> compile(expr.function, popReturnValue = false)
 
     is Expr.CharLiteral -> listOf(Push(CharT(expr.value)))
     is Expr.StringLiteral -> listOf(Push(StringT(expr.value.toCharArray())))
@@ -217,7 +218,7 @@ fun compile(expr: Expr): List<StackOp> = when (expr) {
     }
 }
 
-fun compile(function: FunctionCall): List<StackOp> {
+fun compile(function: FunctionCall, popReturnValue: Boolean): List<StackOp> {
     // Compile arguments
     val result = mutableListOf<StackOp>()
     for (expr in function.args.reversed()) {
@@ -231,15 +232,17 @@ fun compile(function: FunctionCall): List<StackOp> {
 
     if (regularFunction(function.name)) {
         result += Call(function.name)
+        if (popReturnValue)
+            result += Pop
     } else {
-        compileFunctionPointerCall(result, function)
+        compileFunctionPointerCall(result, function, popReturnValue)
     }
 
     return result
 }
 
-private fun compileFunctionPointerCall(
-    result: MutableList<StackOp>, function: FunctionCall)
+private fun compileFunctionPointerCall(result: MutableList<StackOp>,
+    function: FunctionCall, popReturnValue: Boolean)
 {
     val afterAll = nextLabel()
     for (i in 0 until sourceProgram!!.functions.size) {
@@ -255,7 +258,11 @@ private fun compileFunctionPointerCall(
             Push(IntT(i)),
             Binop("!="),
             Jnz(afterCurrentFunction),
-            Call(name),
+            Call(name)
+        )
+        if (popReturnValue)
+            result += Pop
+        result += listOf(
             Jump(afterAll),
             Label(afterCurrentFunction)
         )
